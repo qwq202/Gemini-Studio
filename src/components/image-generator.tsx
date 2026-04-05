@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Maximize2,
   Menu,
-  CheckCircle2
+  CheckCircle2,
+  Heart
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -77,6 +78,7 @@ interface HistoryItem {
   mode: 'generate' | 'edit'
   model: string
   createdAt: number
+  favorite?: boolean
 }
 
 interface ApiErrorLike {
@@ -96,7 +98,7 @@ interface ModelsApiResponse extends ApiErrorLike {
   promptModels?: unknown[]
 }
 
-type WorkspacePage = 'studio' | 'history' | 'trash'
+type WorkspacePage = 'studio' | 'history' | 'trash' | 'favorites'
 type WorkMode = 'generate' | 'edit'
 
 interface ImageGeneratorProps {
@@ -126,6 +128,7 @@ const IMAGE_SIZE_LABELS: Record<(typeof IMAGE_SIZES)[number], string> = {
 }
 const HISTORY_KEY = 'gemini_image_history_v1'
 const TRASH_KEY = 'gemini_image_trash_v1'
+const FAVORITES_KEY = 'gemini_image_favorites_v1'
 const HISTORY_LIMIT_KEY = 'gemini_image_history_limit'
 const AUTO_SAVE_HISTORY_KEY = 'gemini_auto_save_history'
 const GENERATE_COUNT_KEY = 'gemini_generate_count'
@@ -186,6 +189,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([])
   const [trashItems, setTrashItems] = useState<HistoryItem[]>([])
+  const [favoriteItems, setFavoriteItems] = useState<HistoryItem[]>([])
   const [historyLimit, setHistoryLimit] = useState(30)
 
   const [debugEnabled, setDebugEnabled] = useState(false)
@@ -277,6 +281,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const workspacePage: WorkspacePage = useMemo(() => {
     if (pathname === '/history') return 'history'
     if (pathname === '/trash') return 'trash'
+    if (pathname === '/favorites') return 'favorites'
     return initialPage
   }, [initialPage, pathname])
 
@@ -438,6 +443,34 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const clearTrash = () => {
     setTrashItems([])
     setNotice(t('messages.trashCleared'))
+  }
+
+  const toggleFavorite = (id: string) => {
+    const inHistory = historyItems.find((item) => item.id === id)
+    const inFavorites = favoriteItems.find((item) => item.id === id)
+    if (inFavorites) {
+      setFavoriteItems((prev) => prev.filter((item) => item.id !== id))
+      setNotice(t('messages.removedFromFavorites'))
+    } else if (inHistory) {
+      const updated = { ...inHistory, favorite: true }
+      setFavoriteItems((prev) => [updated, ...prev].slice(0, 300))
+      setHistoryItems((prev) => prev.map((item) => item.id === id ? { ...item, favorite: true } : item))
+      setNotice(t('messages.addedToFavorites'))
+    }
+  }
+
+  const removeFromFavorites = (id: string) => {
+    setFavoriteItems((prev) => prev.filter((item) => item.id !== id))
+    setHistoryItems((prev) => prev.map((item) => item.id === id ? { ...item, favorite: false } : item))
+    setNotice(t('messages.removedFromFavorites'))
+  }
+
+  const restoreFavoriteItem = (id: string) => {
+    const target = favoriteItems.find((item) => item.id === id)
+    if (!target) return
+    removeFromFavorites(id)
+    persistHistory([target, ...historyItems])
+    setNotice(t('messages.restored'))
   }
 
   const buildApiHeaders = (includeContentType = false) => {
@@ -1110,9 +1143,10 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     let canceled = false
     const hydrateMediaStorage = async () => {
       try {
-        const [idbHistory, idbTrash] = await Promise.all([
+        const [idbHistory, idbTrash, idbFavorites] = await Promise.all([
           idbGet<HistoryItem[]>(HISTORY_KEY),
           idbGet<HistoryItem[]>(TRASH_KEY),
+          idbGet<HistoryItem[]>(FAVORITES_KEY),
         ])
 
         if (!canceled && Array.isArray(idbHistory)) {
@@ -1120,6 +1154,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
         }
         if (!canceled && Array.isArray(idbTrash)) {
           setTrashItems(idbTrash.filter((item) => !!item?.id && !!item?.image))
+        }
+        if (!canceled && Array.isArray(idbFavorites)) {
+          setFavoriteItems(idbFavorites.filter((item) => !!item?.id && !!item?.image))
         }
 
         if (!Array.isArray(idbHistory)) {
@@ -1328,6 +1365,18 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   }, [mounted, prefsHydrated, trashItems, t])
 
   useEffect(() => {
+    if (!mounted || !prefsHydrated) return
+    const persistFavorites = async () => {
+      try {
+        await idbSet(FAVORITES_KEY, favoriteItems)
+      } catch {
+        setError(t('messages.favoritesStorageUnavailable'))
+      }
+    }
+    void persistFavorites()
+  }, [mounted, prefsHydrated, favoriteItems, t])
+
+  useEffect(() => {
     setHistoryItems((prev) => prev.slice(0, historyLimit))
   }, [historyLimit])
 
@@ -1359,6 +1408,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const sidebarLinks = [
     { key: 'studio', label: t('nav.create'), href: '/', icon: <Sparkles className='h-4 w-4' /> },
     { key: 'history', label: t('nav.history'), href: '/history', icon: <History className='h-4 w-4' />, count: historyItems.length },
+    { key: 'favorites', label: t('nav.favorites'), href: '/favorites', icon: <Heart className='h-4 w-4' />, count: favoriteItems.length },
     { key: 'trash', label: t('nav.trash'), href: '/trash', icon: <Trash2 className='h-4 w-4' />, count: trashItems.length },
   ]
 
@@ -1883,6 +1933,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                       }}>
                         <Undo2 className='h-4 w-4' />
                       </Button>
+                      <Button size='icon' variant='secondary' className={item.favorite ? 'h-8 w-8 rounded-sm bg-white text-red-500' : 'h-8 w-8 rounded-sm bg-white text-slate-400'} onClick={() => toggleFavorite(item.id)}>
+                        <Heart className={`h-4 w-4 ${item.favorite ? 'fill-current' : ''}`} />
+                      </Button>
                       <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
                         <Trash2 className='h-4 w-4' />
                       </Button>
@@ -1913,6 +1966,65 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   </div>
                   <p className='text-sm font-medium'>{t('messages.noHistory')}</p>
                   <p className='text-xs mt-1 opacity-60'>{t('messages.noHistoryHint')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {workspacePage === 'favorites' && (
+          <div className='max-w-[1600px] mx-auto'>
+            <div className='flex items-center justify-between mb-6'>
+              <h2 className='text-xl font-bold'>{t('nav.favorites')}</h2>
+              <span className='text-sm text-slate-400'>{t('messages.favoritesCount', { count: favoriteItems.length })}</span>
+            </div>
+
+            <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4'>
+              {favoriteItems.map((item) => (
+                <div key={item.id} className='group relative border border-slate-200 bg-white rounded-sm overflow-hidden hover:border-slate-400 transition-colors'>
+                  <div className='aspect-square relative bg-slate-50'>
+                    <Image src={item.image} alt='favorite' fill className='object-cover' />
+                    <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100'>
+                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-black' onClick={() => {
+                        setGeneratedImage(item.image)
+                        setGeneratedText(item.text || '')
+                        setMode(item.mode)
+                      }}>
+                        <Undo2 className='h-4 w-4' />
+                      </Button>
+                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-500' onClick={() => removeFromFavorites(item.id)}>
+                        <Heart className='h-4 w-4 fill-current' />
+                      </Button>
+                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
+                        <Trash2 className='h-4 w-4' />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className='p-2'>
+                    <div className='flex items-center justify-between'>
+                      <p className='text-[10px] text-slate-400 uppercase font-medium truncate'>{item.model}</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.prompt)
+                          setNotice(t('messages.promptCopied'))
+                        }}
+                        className='text-[10px] text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity'
+                        title={t('messages.promptCopied')}
+                      >
+                        <Copy className='h-3 w-3' />
+                      </button>
+                    </div>
+                    <p className='text-xs text-slate-600 truncate mt-0.5'>{item.prompt}</p>
+                  </div>
+                </div>
+              ))}
+              {favoriteItems.length === 0 && (
+                <div className='col-span-full flex flex-col items-center justify-center py-20 text-slate-400'>
+                  <div className='h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4'>
+                    <Heart className='h-8 w-8 opacity-20' />
+                  </div>
+                  <p className='text-sm font-medium'>{t('messages.noFavorites')}</p>
+                  <p className='text-xs mt-1 opacity-60'>{t('messages.noFavoritesHint')}</p>
                 </div>
               )}
             </div>

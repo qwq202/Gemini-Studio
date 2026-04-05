@@ -6,7 +6,8 @@
   "nav": {
     "create": "作成",
     "history": "기록",
-    "trash": "휴지통"
+    "trash": "휴지통",
+    "favorites": "휴지통"
   },
   "actions": {
     "settings": "설정",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "브라우저 저장소를 사용할 수 없습니다",
     "currentModelNoSearch": "현재 모델은 검색을 지원하지 않습니다",
     "updateAvailable": "새 버전 v{version} 사용 가능",
-    "viewUpdate": "업데이트 보기"
+    "viewUpdate": "업데이트 보기",
+    "addedToFavorites": "휴지통으로 이동했습니다",
+    "removedFromFavorites": "복원되었습니다",
+    "noFavorites": "기록 없음",
+    "noFavoritesHint": "생성된 이미지가 여기에 표시됩니다",
+    "favoritesCount": "{count}건",
+    "favoritesStorageUnavailable": "브라우저 저장소를 사용할 수 없습니다"
   },
   "settings": {
     "title": "설정",

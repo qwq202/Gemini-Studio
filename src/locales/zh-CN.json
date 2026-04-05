@@ -6,7 +6,8 @@
   "nav": {
     "create": "创作",
     "history": "历史",
-    "trash": "回收"
+    "trash": "回收",
+    "favorites": "回收"
   },
   "actions": {
     "settings": "设置",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "浏览器存储不可用，无法保存回收站",
     "currentModelNoSearch": "当前模型不支持搜索",
     "updateAvailable": "发现新版本 v{version}",
-    "viewUpdate": "查看更新"
+    "viewUpdate": "查看更新",
+    "addedToFavorites": "已移入回收站",
+    "removedFromFavorites": "已恢复",
+    "noFavorites": "暂无历史记录",
+    "noFavoritesHint": "生成的图片会自动保存在这里",
+    "favoritesCount": "{count} items",
+    "favoritesStorageUnavailable": "浏览器存储不可用，无法保存回收站"
   },
   "settings": {
     "title": "设置",

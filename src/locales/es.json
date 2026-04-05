@@ -6,7 +6,8 @@
   "nav": {
     "create": "Crear",
     "history": "Historial",
-    "trash": "Papelera"
+    "trash": "Papelera",
+    "favorites": "Papelera"
   },
   "actions": {
     "settings": "Configuración",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "Almacenamiento del navegador no disponible para la papelera",
     "currentModelNoSearch": "El modelo actual no soporta búsqueda",
     "updateAvailable": "Nueva versión v{version} disponible",
-    "viewUpdate": "Ver actualización"
+    "viewUpdate": "Ver actualización",
+    "addedToFavorites": "Movido a la papelera",
+    "removedFromFavorites": "Restaurado",
+    "noFavorites": "Sin historial",
+    "noFavoritesHint": "Las imágenes generadas aparecerán aquí",
+    "favoritesCount": "{count} elementos",
+    "favoritesStorageUnavailable": "Almacenamiento del navegador no disponible para la papelera"
   },
   "settings": {
     "title": "Configuración",

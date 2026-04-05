@@ -6,7 +6,8 @@
   "nav": {
     "create": "Create",
     "history": "History",
-    "trash": "Trash"
+    "trash": "Trash",
+    "favorites": "Favorites"
   },
   "actions": {
     "settings": "Settings",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "Browser storage unavailable, cannot save trash",
     "currentModelNoSearch": "Current model does not support search",
     "updateAvailable": "New version v{version} available",
-    "viewUpdate": "View update"
+    "viewUpdate": "View update",
+    "addedToFavorites": "Added to favorites",
+    "removedFromFavorites": "Removed from favorites",
+    "noFavorites": "No favorites yet",
+    "noFavoritesHint": "Click the heart icon on any image to save it here",
+    "favoritesCount": "{{count}} favorites",
+    "favoritesStorageUnavailable": "Failed to save favorites to browser storage"
   },
   "settings": {
     "title": "Settings",

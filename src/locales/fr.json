@@ -6,7 +6,8 @@
   "nav": {
     "create": "Créer",
     "history": "Historique",
-    "trash": "Corbeille"
+    "trash": "Corbeille",
+    "favorites": "Corbeille"
   },
   "actions": {
     "settings": "Paramètres",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "Stockage du navigateur indisponible pour la corbeille",
     "currentModelNoSearch": "Le modèle actuel ne supporte pas la recherche",
     "updateAvailable": "Nouvelle version v{version} disponible",
-    "viewUpdate": "Voir la mise à jour"
+    "viewUpdate": "Voir la mise à jour",
+    "addedToFavorites": "Déplacé vers la corbeille",
+    "removedFromFavorites": "Restauré",
+    "noFavorites": "Aucun historique",
+    "noFavoritesHint": "Les images générées apparaîtront ici",
+    "favoritesCount": "{count} éléments",
+    "favoritesStorageUnavailable": "Stockage du navigateur indisponible pour la corbeille"
   },
   "settings": {
     "title": "Paramètres",

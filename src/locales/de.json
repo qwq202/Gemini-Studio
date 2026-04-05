@@ -6,7 +6,8 @@
   "nav": {
     "create": "Erstellen",
     "history": "Verlauf",
-    "trash": "Papierkorb"
+    "trash": "Papierkorb",
+    "favorites": "Papierkorb"
   },
   "actions": {
     "settings": "Einstellungen",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "Browserspeicher für Papierkorb nicht verfügbar",
     "currentModelNoSearch": "Aktuelles Modell unterstützt keine Suche",
     "updateAvailable": "Neue Version v{version} verfügbar",
-    "viewUpdate": "Update ansehen"
+    "viewUpdate": "Update ansehen",
+    "addedToFavorites": "In Papierkorb verschoben",
+    "removedFromFavorites": "Wiederhergestellt",
+    "noFavorites": "Kein Verlauf",
+    "noFavoritesHint": "Generierte Bilder werden hier angezeigt",
+    "favoritesCount": "{count} Elemente",
+    "favoritesStorageUnavailable": "Browserspeicher für Papierkorb nicht verfügbar"
   },
   "settings": {
     "title": "Einstellungen",

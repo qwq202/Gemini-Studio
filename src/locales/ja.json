@@ -6,7 +6,8 @@
   "nav": {
     "create": "作成",
     "history": "履歴",
-    "trash": "ゴミ箱"
+    "trash": "ゴミ箱",
+    "favorites": "ゴミ箱"
   },
   "actions": {
     "settings": "設定",
@@ -131,7 +132,13 @@
     "trashStorageUnavailable": "ブラウザストレージが利用できません",
     "currentModelNoSearch": "現在のモデルは検索をサポートしていません",
     "updateAvailable": "新バージョン v{version} が利用可能です",
-    "viewUpdate": "アップデートを見る"
+    "viewUpdate": "アップデートを見る",
+    "addedToFavorites": "ゴミ箱に移動しました",
+    "removedFromFavorites": "復元しました",
+    "noFavorites": "履歴なし",
+    "noFavoritesHint": "生成した画像はここに表示されます",
+    "favoritesCount": "{count} 件",
+    "favoritesStorageUnavailable": "ブラウザストレージが利用できません"
   },
   "settings": {
     "title": "設定",
