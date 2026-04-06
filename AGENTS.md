@@ -28,6 +28,7 @@
 - 该目录未包含 Git 历史，因此无法确认既有提交规范。
 - 建议：提交信息简短、祈使句式（例如 "Add prompt optimizer endpoint"）。
 - PR 建议包含：简要说明、涉及 UI 变更时的截图、以及必要的配置/使用说明。
+- **回复 Issue 和发布 Release 时统一使用英文**。
 
 ## Docker 部署指南
 - 打包命令：`docker build --platform linux/amd64 -t qunqin45/ai-img:latest .`
