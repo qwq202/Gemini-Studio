@@ -20,7 +20,10 @@
     "delete": "Delete",
     "restore": "Restore",
     "test": "Test Connection",
-    "testing": "Testing..."
+    "testing": "Testing...",
+    "select": "Select",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All"
   },
   "modes": {
     "generate": "Generate",
@@ -41,7 +44,9 @@
     "autoSaveToHistory": "Auto Save to History",
     "debugMode": "Debug Mode",
     "promptOptimizerModel": "Prompt Optimizer Model",
-    "language": "Language"
+    "language": "Language",
+    "sortByTime": "By Time",
+    "sortByCustom": "Custom Order"
   },
   "placeholders": {
     "promptGenerate": "Describe your image here...",
@@ -131,7 +136,10 @@
     "trashStorageUnavailable": "Browser storage unavailable, cannot save trash",
     "currentModelNoSearch": "Current model does not support search",
     "updateAvailable": "New version v{version} available",
-    "viewUpdate": "View update"
+    "viewUpdate": "View update",
+    "batchMovedToTrash": "Moved {count} items to trash",
+    "confirmBatchDelete": "Delete {count} selected items?",
+    "selectedCount": "{count} selected"
   },
   "settings": {
     "title": "Settings",

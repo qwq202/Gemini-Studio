@@ -20,7 +20,10 @@
     "delete": "삭제",
     "restore": "복원",
     "test": "연결 테스트",
-    "testing": "테스트 중..."
+    "testing": "테스트 중...",
+    "select": "선택",
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 선택 해제"
   },
   "modes": {
     "generate": "생성",
@@ -41,7 +44,9 @@
     "autoSaveToHistory": "기록에 자동 저장",
     "debugMode": "디버그 모드",
     "promptOptimizerModel": "프롬프트 최적화 모델",
-    "language": "언어"
+    "language": "언어",
+    "sortByTime": "시간순",
+    "sortByCustom": "사용자 정렬"
   },
   "placeholders": {
     "promptGenerate": "이미지를 여기에 설명...",
@@ -131,7 +136,10 @@
     "trashStorageUnavailable": "브라우저 저장소를 사용할 수 없습니다",
     "currentModelNoSearch": "현재 모델은 검색을 지원하지 않습니다",
     "updateAvailable": "새 버전 v{version} 사용 가능",
-    "viewUpdate": "업데이트 보기"
+    "viewUpdate": "업데이트 보기",
+    "batchMovedToTrash": "{count}개 항목을 휴지통으로 이동했습니다",
+    "confirmBatchDelete": "선택한 {count}개 항목을 삭제하시겠습니까?",
+    "selectedCount": "{count}개 선택됨"
   },
   "settings": {
     "title": "설정",

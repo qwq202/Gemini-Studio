@@ -20,7 +20,10 @@
     "delete": "Entfernen",
     "restore": "Wiederherstellen",
     "test": "Verbindung testen",
-    "testing": "Teste..."
+    "testing": "Teste...",
+    "select": "Auswählen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen"
   },
   "modes": {
     "generate": "Generieren",
@@ -41,7 +44,9 @@
     "autoSaveToHistory": "Automatisch im Verlauf speichern",
     "debugMode": "Debug-Modus",
     "promptOptimizerModel": "Prompt-Optimierungsmodell",
-    "language": "Sprache"
+    "language": "Sprache",
+    "sortByTime": "Nach Zeit",
+    "sortByCustom": "Benutzerdefinierte Sortierung"
   },
   "placeholders": {
     "promptGenerate": "Beschreiben Sie Ihr Bild hier...",
@@ -131,7 +136,10 @@
     "trashStorageUnavailable": "Browserspeicher für Papierkorb nicht verfügbar",
     "currentModelNoSearch": "Aktuelles Modell unterstützt keine Suche",
     "updateAvailable": "Neue Version v{version} verfügbar",
-    "viewUpdate": "Update ansehen"
+    "viewUpdate": "Update ansehen",
+    "batchMovedToTrash": "{count} Elemente in den Papierkorb verschoben",
+    "confirmBatchDelete": "{count} ausgewählte Elemente löschen?",
+    "selectedCount": "{count} ausgewählt"
   },
   "settings": {
     "title": "Einstellungen",

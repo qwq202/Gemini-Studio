@@ -22,8 +22,13 @@ import {
   AlertCircle,
   Maximize2,
   Menu,
-  CheckCircle2
+  CheckCircle2,
+  GripVertical,
+  CheckSquare,
+  Square
 } from 'lucide-react'
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 
 import { cn } from '@/lib/utils'
 import { idbGet, idbSet } from '@/lib/indexeddb'
@@ -128,6 +133,8 @@ const HISTORY_KEY = 'gemini_image_history_v1'
 const TRASH_KEY = 'gemini_image_trash_v1'
 const HISTORY_LIMIT_KEY = 'gemini_image_history_limit'
 const AUTO_SAVE_HISTORY_KEY = 'gemini_auto_save_history'
+const HISTORY_SORT_MODE_KEY = 'gemini_history_sort_mode_v1'
+const HISTORY_CUSTOM_ORDER_KEY = 'gemini_history_custom_order_v1'
 const GENERATE_COUNT_KEY = 'gemini_generate_count'
 const GENERATE_MODEL_KEY = 'gemini_generate_model'
 const EDIT_MODEL_KEY = 'gemini_edit_model'
@@ -135,7 +142,7 @@ const ASPECT_RATIO_KEY = 'gemini_aspect_ratio'
 const GOOGLE_SEARCH_KEY = 'gemini_use_google_search'
 const GOOGLE_IMAGE_SEARCH_KEY = 'gemini_use_google_image_search'
 const THINKING_LEVEL_KEY = 'gemini_thinking_level'
-const CURRENT_VERSION = '1.1.0'
+const CURRENT_VERSION = '1.2.0'
 
 export default function ImageGenerator({ initialPage = 'studio' }: ImageGeneratorProps) {
   const pathname = usePathname()
@@ -187,6 +194,10 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([])
   const [trashItems, setTrashItems] = useState<HistoryItem[]>([])
   const [historyLimit, setHistoryLimit] = useState(30)
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set())
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [historySortMode, setHistorySortMode] = useState<'time' | 'custom'>('time')
+  const [historyCustomOrder, setHistoryCustomOrder] = useState<string[]>([])
 
   const [debugEnabled, setDebugEnabled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -439,6 +450,47 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     setTrashItems([])
     setNotice(t('messages.trashCleared'))
   }
+
+  const toggleSelectAll = () => {
+    if (selectedHistoryIds.size === historyItems.length) {
+      setSelectedHistoryIds(new Set())
+    } else {
+      setSelectedHistoryIds(new Set(historyItems.map((item) => item.id)))
+    }
+  }
+
+  const batchDeleteSelected = () => {
+    const itemsToDelete = historyItems.filter((item) => selectedHistoryIds.has(item.id))
+    setHistoryItems((prev) => prev.filter((item) => !selectedHistoryIds.has(item.id)))
+    setTrashItems((prev) => [...itemsToDelete, ...prev].slice(0, 300))
+    setNotice(t('messages.batchMovedToTrash', { count: selectedHistoryIds.size }))
+    setSelectedHistoryIds(new Set())
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = historyCustomOrder.indexOf(active.id as string)
+      const newIndex = historyCustomOrder.indexOf(over.id as string)
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(historyCustomOrder, oldIndex, newIndex)
+        setHistoryCustomOrder(newOrder)
+        setHistoryItems((prev) => arrayMove(prev, oldIndex, newIndex))
+      }
+    }
+  }
+
+  const sortedHistoryItems = useMemo(() => {
+    if (historySortMode === 'custom' && historyCustomOrder.length > 0) {
+      const orderMap = new Map(historyCustomOrder.map((id, idx) => [id, idx]))
+      return [...historyItems].sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? Infinity
+        const orderB = orderMap.get(b.id) ?? Infinity
+        return orderA - orderB
+      })
+    }
+    return [...historyItems].sort((a, b) => b.createdAt - a.createdAt)
+  }, [historyItems, historySortMode, historyCustomOrder])
 
   const buildApiHeaders = (includeContentType = false) => {
     if (!apiKey.trim() || !apiUrl.trim()) return null
@@ -1079,6 +1131,8 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     const storedGoogleSearch = localStorage.getItem(GOOGLE_SEARCH_KEY) || ''
     const storedGoogleImageSearch = localStorage.getItem(GOOGLE_IMAGE_SEARCH_KEY) || ''
     const storedThinkingLevel = localStorage.getItem(THINKING_LEVEL_KEY) || ''
+    const storedSortMode = localStorage.getItem(HISTORY_SORT_MODE_KEY) || ''
+    const storedCustomOrder = localStorage.getItem(HISTORY_CUSTOM_ORDER_KEY) || ''
 
     if (storedKey) setApiKey(storedKey)
     if (storedUrl) setApiUrl(storedUrl)
@@ -1092,6 +1146,19 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     if (storedGoogleImageSearch) setUseGoogleImageSearch(storedGoogleImageSearch === '1')
     if (storedThinkingLevel === 'minimal' || storedThinkingLevel === 'high') {
       setThinkingLevel(storedThinkingLevel)
+    }
+    if (storedSortMode === 'time' || storedSortMode === 'custom') {
+      setHistorySortMode(storedSortMode)
+    }
+    if (storedCustomOrder) {
+      try {
+        const parsed = JSON.parse(storedCustomOrder)
+        if (Array.isArray(parsed)) {
+          setHistoryCustomOrder(parsed)
+        }
+      } catch {
+        // ignore
+      }
     }
 
     if (storedHistoryLimit) {
@@ -1326,6 +1393,16 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     }
     void persistTrash()
   }, [mounted, prefsHydrated, trashItems, t])
+
+  useEffect(() => {
+    if (!mounted || !prefsHydrated) return
+    localStorage.setItem(HISTORY_SORT_MODE_KEY, historySortMode)
+  }, [mounted, prefsHydrated, historySortMode])
+
+  useEffect(() => {
+    if (!mounted || !prefsHydrated) return
+    localStorage.setItem(HISTORY_CUSTOM_ORDER_KEY, JSON.stringify(historyCustomOrder))
+  }, [mounted, prefsHydrated, historyCustomOrder])
 
   useEffect(() => {
     setHistoryItems((prev) => prev.slice(0, historyLimit))
@@ -1864,58 +1941,175 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
         )}
 
         {workspacePage === 'history' && (
-           <div className='max-w-[1600px] mx-auto'>
+          <div className='max-w-[1600px] mx-auto'>
             <div className='flex items-center justify-between mb-6'>
-              <h2 className='text-xl font-bold'>{t('nav.history')}</h2>
-              <span className='text-sm text-slate-400'>{t('messages.historyCount', { count: historyItems.length })}</span>
-            </div>
-            
-            <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4'>
-              {historyItems.map((item) => (
-                <div key={item.id} className='group relative border border-slate-200 bg-white rounded-sm overflow-hidden hover:border-slate-400 transition-colors'>
-                  <div className='aspect-square relative bg-slate-50'>
-                    <Image src={item.image} alt='history' fill className='object-cover' />
-                    <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100'>
-                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-black' onClick={() => {
-                        setGeneratedImage(item.image)
-                        setGeneratedText(item.text || '')
-                        setMode(item.mode)
-                      }}>
-                        <Undo2 className='h-4 w-4' />
-                      </Button>
-                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
-                        <Trash2 className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className='p-2'>
-                    <div className='flex items-center justify-between'>
-                      <p className='text-[10px] text-slate-400 uppercase font-medium truncate'>{item.model}</p>
-                      <button 
+              <div className='flex items-center gap-3'>
+                <h2 className='text-xl font-bold'>{t('nav.history')}</h2>
+                {historyItems.length > 0 && (
+                  <div className='flex items-center gap-2'>
+                    <Button
+                      variant={isSelectionMode ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => {
+                        setIsSelectionMode(!isSelectionMode)
+                        if (isSelectionMode) {
+                          setSelectedHistoryIds(new Set())
+                        }
+                      }}
+                      className='h-7 text-xs'
+                    >
+                      {isSelectionMode ? t('actions.cancel') : t('actions.select')}
+                    </Button>
+                    {isSelectionMode && selectedHistoryIds.size > 0 && (
+                      <Button
+                        variant='destructive'
+                        size='sm'
                         onClick={() => {
-                          navigator.clipboard.writeText(item.prompt)
-                          setNotice(t('messages.promptCopied'))
+                          if (window.confirm(t('messages.confirmBatchDelete', { count: selectedHistoryIds.size }))) {
+                            batchDeleteSelected()
+                          }
                         }}
-                        className='text-[10px] text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity'
-                        title={t('messages.promptCopied')}
+                        className='h-7 text-xs'
                       >
-                        <Copy className='h-3 w-3' />
-                      </button>
-                    </div>
-                    <p className='text-xs text-slate-600 truncate mt-0.5'>{item.prompt}</p>
+                        <Trash2 className='h-3 w-3 mr-1' />
+                        {t('actions.delete')} ({selectedHistoryIds.size})
+                      </Button>
+                    )}
                   </div>
-                </div>
-              ))}
-              {historyItems.length === 0 && (
-                <div className='col-span-full flex flex-col items-center justify-center py-20 text-slate-400'>
-                  <div className='h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4'>
-                    <History className='h-8 w-8 opacity-20' />
+                )}
+              </div>
+              <div className='flex items-center gap-3'>
+                {historyItems.length > 0 && (
+                  <div className='flex items-center gap-2'>
+                    <select
+                      value={historySortMode}
+                      onChange={(e) => {
+                        const mode = e.target.value as 'time' | 'custom'
+                        setHistorySortMode(mode)
+                        if (mode === 'custom') {
+                          setHistoryCustomOrder(historyItems.map((item) => item.id))
+                        }
+                      }}
+                      className='text-xs border border-slate-200 rounded-sm px-2 py-1 bg-white'
+                    >
+                      <option value='time'>{t('labels.sortByTime')}</option>
+                      <option value='custom'>{t('labels.sortByCustom')}</option>
+                    </select>
                   </div>
-                  <p className='text-sm font-medium'>{t('messages.noHistory')}</p>
-                  <p className='text-xs mt-1 opacity-60'>{t('messages.noHistoryHint')}</p>
-                </div>
-              )}
+                )}
+                <span className='text-sm text-slate-400'>{t('messages.historyCount', { count: historyItems.length })}</span>
+              </div>
             </div>
+
+            {isSelectionMode && selectedHistoryIds.size > 0 && (
+              <div className='mb-4 flex items-center gap-2'>
+                <Button variant='outline' size='sm' onClick={toggleSelectAll} className='h-7 text-xs'>
+                  {selectedHistoryIds.size === historyItems.length ? t('actions.deselectAll') : t('actions.selectAll')}
+                </Button>
+                <span className='text-xs text-slate-500'>{t('messages.selectedCount', { count: selectedHistoryIds.size })}</span>
+              </div>
+            )}
+
+            <DndContext
+              sensors={undefined}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortedHistoryItems.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4'>
+                  {sortedHistoryItems.map((item) => {
+                    const isSelected = selectedHistoryIds.has(item.id)
+                    return (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          'group relative border bg-white rounded-sm overflow-hidden transition-colors',
+                          isSelectionMode && isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-slate-400',
+                          historySortMode === 'custom' && 'cursor-grab'
+                        )}
+                      >
+                        <div className='aspect-square relative bg-slate-50'>
+                          <Image src={item.image} alt='history' fill className='object-cover' />
+                          {isSelectionMode ? (
+                            <button
+                              type='button'
+                              className='absolute inset-0 z-10 cursor-pointer'
+                              onClick={() => {
+                                    setSelectedHistoryIds((prev) => {
+                                      const next = new Set(prev)
+                                      if (next.has(item.id)) {
+                                        next.delete(item.id)
+                                      } else {
+                                        next.add(item.id)
+                                      }
+                                      return next
+                                    })
+                                  }}
+                            >
+                              <div className='absolute top-2 left-2 z-10'>
+                                {isSelected ? (
+                                  <CheckSquare className='h-5 w-5 text-blue-500' />
+                                ) : (
+                                  <Square className='h-5 w-5 text-slate-400' />
+                                )}
+                              </div>
+                            </button>
+                          ) : historySortMode === 'custom' ? (
+                            <div className='absolute top-2 left-2 z-10 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <GripVertical className='h-4 w-4 text-slate-600' />
+                            </div>
+                          ) : null}
+                          {!isSelectionMode && (
+                            <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100'>
+                              <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-black' onClick={() => {
+                                setGeneratedImage(item.image)
+                                setGeneratedText(item.text || '')
+                                setMode(item.mode)
+                                router.push('/')
+                              }}>
+                                <Undo2 className='h-4 w-4' />
+                              </Button>
+                              <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
+                                <Trash2 className='h-4 w-4' />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <div className='p-2'>
+                          <div className='flex items-center justify-between'>
+                            <p className='text-[10px] text-slate-400 uppercase font-medium truncate'>{item.model}</p>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigator.clipboard.writeText(item.prompt)
+                                setNotice(t('messages.promptCopied'))
+                              }}
+                              className='text-[10px] text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity'
+                              title={t('messages.promptCopied')}
+                            >
+                              <Copy className='h-3 w-3' />
+                            </button>
+                          </div>
+                          <p className='text-xs text-slate-600 truncate mt-0.5'>{item.prompt}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {historyItems.length === 0 && (
+                    <div className='col-span-full flex flex-col items-center justify-center py-20 text-slate-400'>
+                      <div className='h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4'>
+                        <History className='h-8 w-8 opacity-20' />
+                      </div>
+                      <p className='text-sm font-medium'>{t('messages.noHistory')}</p>
+                      <p className='text-xs mt-1 opacity-60'>{t('messages.noHistoryHint')}</p>
+                    </div>
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
         )}
 

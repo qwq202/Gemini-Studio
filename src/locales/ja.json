@@ -20,7 +20,10 @@
     "delete": "削除",
     "restore": "復元",
     "test": "接続テスト",
-    "testing": "テスト中..."
+    "testing": "テスト中...",
+    "select": "選択",
+    "selectAll": "全て選択",
+    "deselectAll": "全て選択解除"
   },
   "modes": {
     "generate": "生成",
@@ -41,7 +44,9 @@
     "autoSaveToHistory": "履歴に自動保存",
     "debugMode": "デバッグモード",
     "promptOptimizerModel": "プロンプト最適化モデル",
-    "language": "言語"
+    "language": "言語",
+    "sortByTime": "時間順",
+    "sortByCustom": "カスタム順"
   },
   "placeholders": {
     "promptGenerate": "画像をここに描述...",
@@ -131,7 +136,10 @@
     "trashStorageUnavailable": "ブラウザストレージが利用できません",
     "currentModelNoSearch": "現在のモデルは検索をサポートしていません",
     "updateAvailable": "新バージョン v{version} が利用可能です",
-    "viewUpdate": "アップデートを見る"
+    "viewUpdate": "アップデートを見る",
+    "batchMovedToTrash": "{count}件をゴミ箱に移動しました",
+    "confirmBatchDelete": "選択した{count}件を削除しますか?",
+    "selectedCount": "{count}件選択"
   },
   "settings": {
     "title": "設定",

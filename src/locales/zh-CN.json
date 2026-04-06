@@ -20,7 +20,10 @@
     "delete": "删除",
     "restore": "恢复",
     "test": "测试连接",
-    "testing": "测试中..."
+    "testing": "测试中...",
+    "select": "选择",
+    "selectAll": "全选",
+    "deselectAll": "取消全选"
   },
   "modes": {
     "generate": "生成",
@@ -41,7 +44,9 @@
     "autoSaveToHistory": "自动保存到历史",
     "debugMode": "调试模式",
     "promptOptimizerModel": "提示词优化模型",
-    "language": "语言"
+    "language": "语言",
+    "sortByTime": "按时间",
+    "sortByCustom": "自定义排序"
   },
   "placeholders": {
     "promptGenerate": "在此描述画面...",
@@ -131,7 +136,10 @@
     "trashStorageUnavailable": "浏览器存储不可用，无法保存回收站",
     "currentModelNoSearch": "当前模型不支持搜索",
     "updateAvailable": "发现新版本 v{version}",
-    "viewUpdate": "查看更新"
+    "viewUpdate": "查看更新",
+    "batchMovedToTrash": "已将 {count} 项移入回收站",
+    "confirmBatchDelete": "确定删除选中的 {count} 项吗?",
+    "selectedCount": "已选中 {count} 项"
   },
   "settings": {
     "title": "设置",
