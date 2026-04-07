@@ -7,7 +7,7 @@
     "create": "Erstellen",
     "history": "Verlauf",
     "trash": "Papierkorb",
-    "favorites": "Papierkorb"
+    "favorites": "Favoriten"
   },
   "actions": {
     "settings": "Einstellungen",
@@ -133,12 +133,12 @@
     "currentModelNoSearch": "Aktuelles Modell unterstützt keine Suche",
     "updateAvailable": "Neue Version v{version} verfügbar",
     "viewUpdate": "Update ansehen",
-    "addedToFavorites": "In Papierkorb verschoben",
-    "removedFromFavorites": "Wiederhergestellt",
-    "noFavorites": "Kein Verlauf",
-    "noFavoritesHint": "Generierte Bilder werden hier angezeigt",
+    "addedToFavorites": "Zu Favoriten hinzugefügt",
+    "removedFromFavorites": "Aus Favoriten entfernt",
+    "noFavorites": "Keine Favoriten",
+    "noFavoritesHint": "Klicken Sie auf das Herz-Symbol bei einem Bild, um es hier zu speichern",
     "favoritesCount": "{count} Elemente",
-    "favoritesStorageUnavailable": "Browserspeicher für Papierkorb nicht verfügbar"
+    "favoritesStorageUnavailable": "Browserspeicher für Favoriten nicht verfügbar"
   },
   "settings": {
     "title": "Einstellungen",

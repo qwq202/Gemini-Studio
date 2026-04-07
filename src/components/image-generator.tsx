@@ -1995,7 +1995,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                       <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-500' onClick={() => removeFromFavorites(item.id)}>
                         <Heart className='h-4 w-4 fill-current' />
                       </Button>
-                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
+                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => removeFromFavorites(item.id)}>
                         <Trash2 className='h-4 w-4' />
                       </Button>
                     </div>

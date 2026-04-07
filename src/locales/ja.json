@@ -7,7 +7,7 @@
     "create": "作成",
     "history": "履歴",
     "trash": "ゴミ箱",
-    "favorites": "ゴミ箱"
+    "favorites": "お気に入り"
   },
   "actions": {
     "settings": "設定",
@@ -133,12 +133,12 @@
     "currentModelNoSearch": "現在のモデルは検索をサポートしていません",
     "updateAvailable": "新バージョン v{version} が利用可能です",
     "viewUpdate": "アップデートを見る",
-    "addedToFavorites": "ゴミ箱に移動しました",
-    "removedFromFavorites": "復元しました",
-    "noFavorites": "履歴なし",
-    "noFavoritesHint": "生成した画像はここに表示されます",
+    "addedToFavorites": "お気に入りに追加しました",
+    "removedFromFavorites": "お気に入りから削除しました",
+    "noFavorites": "お気に入りなし",
+    "noFavoritesHint": "任意の画像のハートアイコンをクリックしてここに保存",
     "favoritesCount": "{count} 件",
-    "favoritesStorageUnavailable": "ブラウザストレージが利用できません"
+    "favoritesStorageUnavailable": "お気に入りを保存するブラウザストレージが利用できません"
   },
   "settings": {
     "title": "設定",

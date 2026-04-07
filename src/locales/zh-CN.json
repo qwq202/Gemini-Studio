@@ -7,7 +7,7 @@
     "create": "创作",
     "history": "历史",
     "trash": "回收",
-    "favorites": "回收"
+    "favorites": "收藏"
   },
   "actions": {
     "settings": "设置",
@@ -133,12 +133,12 @@
     "currentModelNoSearch": "当前模型不支持搜索",
     "updateAvailable": "发现新版本 v{version}",
     "viewUpdate": "查看更新",
-    "addedToFavorites": "已移入回收站",
-    "removedFromFavorites": "已恢复",
-    "noFavorites": "暂无历史记录",
-    "noFavoritesHint": "生成的图片会自动保存在这里",
-    "favoritesCount": "{count} items",
-    "favoritesStorageUnavailable": "浏览器存储不可用，无法保存回收站"
+    "addedToFavorites": "已添加到收藏",
+    "removedFromFavorites": "已从收藏移除",
+    "noFavorites": "暂无收藏",
+    "noFavoritesHint": "点击任意图片上的爱心图标即可保存到这里",
+    "favoritesCount": "{count} 项",
+    "favoritesStorageUnavailable": "浏览器存储不可用，无法保存收藏"
   },
   "settings": {
     "title": "设置",

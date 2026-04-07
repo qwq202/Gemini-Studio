@@ -7,7 +7,7 @@
     "create": "Crear",
     "history": "Historial",
     "trash": "Papelera",
-    "favorites": "Papelera"
+    "favorites": "Favoritos"
   },
   "actions": {
     "settings": "Configuración",
@@ -133,12 +133,12 @@
     "currentModelNoSearch": "El modelo actual no soporta búsqueda",
     "updateAvailable": "Nueva versión v{version} disponible",
     "viewUpdate": "Ver actualización",
-    "addedToFavorites": "Movido a la papelera",
-    "removedFromFavorites": "Restaurado",
-    "noFavorites": "Sin historial",
-    "noFavoritesHint": "Las imágenes generadas aparecerán aquí",
+    "addedToFavorites": "Añadido a favoritos",
+    "removedFromFavorites": "Eliminado de favoritos",
+    "noFavorites": "Sin favoritos",
+    "noFavoritesHint": "Haz clic en el icono del corazón en cualquier imagen para guardarla aquí",
     "favoritesCount": "{count} elementos",
-    "favoritesStorageUnavailable": "Almacenamiento del navegador no disponible para la papelera"
+    "favoritesStorageUnavailable": "Almacenamiento del navegador no disponible para favoritos"
   },
   "settings": {
     "title": "Configuración",

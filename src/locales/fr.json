@@ -7,7 +7,7 @@
     "create": "Créer",
     "history": "Historique",
     "trash": "Corbeille",
-    "favorites": "Corbeille"
+    "favorites": "Favoris"
   },
   "actions": {
     "settings": "Paramètres",
@@ -133,12 +133,12 @@
     "currentModelNoSearch": "Le modèle actuel ne supporte pas la recherche",
     "updateAvailable": "Nouvelle version v{version} disponible",
     "viewUpdate": "Voir la mise à jour",
-    "addedToFavorites": "Déplacé vers la corbeille",
-    "removedFromFavorites": "Restauré",
-    "noFavorites": "Aucun historique",
-    "noFavoritesHint": "Les images générées apparaîtront ici",
+    "addedToFavorites": "Ajouté aux favoris",
+    "removedFromFavorites": "Retiré des favoris",
+    "noFavorites": "Aucun favori",
+    "noFavoritesHint": "Cliquez sur l'icône en forme de cœur sur n'importe quelle image pour la sauvegarder ici",
     "favoritesCount": "{count} éléments",
-    "favoritesStorageUnavailable": "Stockage du navigateur indisponible pour la corbeille"
+    "favoritesStorageUnavailable": "Stockage du navigateur indisponible pour les favoris"
   },
   "settings": {
     "title": "Paramètres",
