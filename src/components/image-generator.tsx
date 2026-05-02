@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Sparkles,
   Settings,
-  ImageIcon,
   Wand2,
   Loader2,
   Upload,
@@ -25,7 +24,8 @@ import {
   CheckCircle2,
   GripVertical,
   CheckSquare,
-  Square
+  Square,
+  ArrowUp
 } from 'lucide-react'
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
@@ -42,7 +42,7 @@ import { Switch } from '@/components/ui/switch'
 
 interface ReferenceImage {
   id: string
-  file: File
+  file?: File
   preview: string
   base64?: string
   mimeType: string
@@ -81,6 +81,22 @@ interface HistoryItem {
   mode: 'generate' | 'edit'
   model: string
   createdAt: number
+  params?: HistoryParams
+}
+
+interface HistoryReferenceImage {
+  preview: string
+  base64?: string
+  mimeType: string
+}
+
+interface HistoryParams {
+  aspectRatio?: string
+  imageSize?: string
+  useGoogleSearch?: boolean
+  useGoogleImageSearch?: boolean
+  thinkingLevel?: 'minimal' | 'high'
+  referenceImages?: HistoryReferenceImage[]
 }
 
 interface ApiErrorLike {
@@ -128,8 +144,18 @@ const IMAGE_SIZE_LABELS: Record<(typeof IMAGE_SIZES)[number], string> = {
   '2K': '2K',
   '4K': '4K',
 }
+
+const formatModelName = (modelId: string) => {
+  return modelId
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 const HISTORY_KEY = 'gemini_image_history_v1'
 const TRASH_KEY = 'gemini_image_trash_v1'
+const HISTORY_REUSE_KEY = 'gemini_history_reuse_payload_v1'
 const HISTORY_LIMIT_KEY = 'gemini_image_history_limit'
 const AUTO_SAVE_HISTORY_KEY = 'gemini_auto_save_history'
 const HISTORY_SORT_MODE_KEY = 'gemini_history_sort_mode_v1'
@@ -180,6 +206,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const [apiKey, setApiKey] = useState('')
   const [apiUrl, setApiUrl] = useState('https://generativelanguage.googleapis.com')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsClosing, setSettingsClosing] = useState(false)
 
   const [modelsLoading, setModelsLoading] = useState(false)
   const [connectionTesting, setConnectionTesting] = useState(false)
@@ -197,13 +224,102 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [historySortMode, setHistorySortMode] = useState<'time' | 'custom'>('time')
   const [historyCustomOrder, setHistoryCustomOrder] = useState<string[]>([])
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null)
+  const [pendingReuseItem, setPendingReuseItem] = useState<HistoryItem | null>(null)
 
   const [debugEnabled, setDebugEnabled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [updateClosing, setUpdateClosing] = useState(false)
   const [latestVersion, setLatestVersion] = useState('')
 
   const [imageLoading, setImageLoading] = useState(true)
+  const [toastClosing, setToastClosing] = useState(false)
+  const pendingReuseModeRef = useRef<WorkMode | null>(null)
+  const settingsCloseTimerRef = useRef<number | null>(null)
+  const toastTimerRef = useRef<number | null>(null)
+  const toastCloseTimerRef = useRef<number | null>(null)
+  const updateTimerRef = useRef<number | null>(null)
+  const updateCloseTimerRef = useRef<number | null>(null)
+
+  pendingReuseModeRef.current = pendingReuseItem?.mode ?? null
+
+  const openSettings = () => {
+    if (settingsCloseTimerRef.current) {
+      window.clearTimeout(settingsCloseTimerRef.current)
+      settingsCloseTimerRef.current = null
+    }
+    setSettingsClosing(false)
+    setSettingsOpen(true)
+  }
+
+  const closeSettings = () => {
+    if (settingsClosing) return
+    setSettingsClosing(true)
+    if (settingsCloseTimerRef.current) {
+      window.clearTimeout(settingsCloseTimerRef.current)
+    }
+    settingsCloseTimerRef.current = window.setTimeout(() => {
+      setSettingsOpen(false)
+      setSettingsClosing(false)
+      settingsCloseTimerRef.current = null
+    }, 220)
+  }
+
+  const closeToast = () => {
+    if (toastClosing) return
+    setToastClosing(true)
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current)
+      toastTimerRef.current = null
+    }
+    if (toastCloseTimerRef.current) {
+      window.clearTimeout(toastCloseTimerRef.current)
+    }
+    toastCloseTimerRef.current = window.setTimeout(() => {
+      setError('')
+      setNotice('')
+      setToastClosing(false)
+      toastCloseTimerRef.current = null
+    }, 200)
+  }
+
+  const closeUpdateNotice = () => {
+    if (updateClosing) return
+    setUpdateClosing(true)
+    if (updateTimerRef.current) {
+      window.clearTimeout(updateTimerRef.current)
+      updateTimerRef.current = null
+    }
+    if (updateCloseTimerRef.current) {
+      window.clearTimeout(updateCloseTimerRef.current)
+    }
+    updateCloseTimerRef.current = window.setTimeout(() => {
+      setUpdateAvailable(false)
+      setUpdateClosing(false)
+      updateCloseTimerRef.current = null
+    }, 200)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (settingsCloseTimerRef.current) {
+        window.clearTimeout(settingsCloseTimerRef.current)
+      }
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current)
+      }
+      if (toastCloseTimerRef.current) {
+        window.clearTimeout(toastCloseTimerRef.current)
+      }
+      if (updateTimerRef.current) {
+        window.clearTimeout(updateTimerRef.current)
+      }
+      if (updateCloseTimerRef.current) {
+        window.clearTimeout(updateCloseTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (generatedImage) {
@@ -278,11 +394,57 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   }, [])
 
   useEffect(() => {
-    if (notice) {
-      const timer = setTimeout(() => setNotice(''), 3000)
-      return () => clearTimeout(timer)
+    if (!error && !notice) return
+    setToastClosing(false)
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current)
     }
-  }, [notice])
+    if (toastCloseTimerRef.current) {
+      window.clearTimeout(toastCloseTimerRef.current)
+      toastCloseTimerRef.current = null
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastClosing(true)
+      toastCloseTimerRef.current = window.setTimeout(() => {
+        setError('')
+        setNotice('')
+        setToastClosing(false)
+        toastCloseTimerRef.current = null
+      }, 200)
+    }, 3000)
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current)
+        toastTimerRef.current = null
+      }
+    }
+  }, [error, notice])
+
+  useEffect(() => {
+    if (!updateAvailable) return
+    setUpdateClosing(false)
+    if (updateTimerRef.current) {
+      window.clearTimeout(updateTimerRef.current)
+    }
+    if (updateCloseTimerRef.current) {
+      window.clearTimeout(updateCloseTimerRef.current)
+      updateCloseTimerRef.current = null
+    }
+    updateTimerRef.current = window.setTimeout(() => {
+      setUpdateClosing(true)
+      updateCloseTimerRef.current = window.setTimeout(() => {
+        setUpdateAvailable(false)
+        setUpdateClosing(false)
+        updateCloseTimerRef.current = null
+      }, 200)
+    }, 3000)
+    return () => {
+      if (updateTimerRef.current) {
+        window.clearTimeout(updateTimerRef.current)
+        updateTimerRef.current = null
+      }
+    }
+  }, [updateAvailable])
 
   const workspacePage: WorkspacePage = useMemo(() => {
     if (pathname === '/history') return 'history'
@@ -403,12 +565,35 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     setHistoryItems(next.slice(0, historyLimit))
   }
 
+  const imageToHistoryReference = (img: ReferenceImage): HistoryReferenceImage => ({
+    preview: img.base64 ? `data:${img.mimeType};base64,${img.base64}` : img.preview,
+    base64: img.base64,
+    mimeType: img.mimeType,
+  })
+
+  const getCurrentHistoryParams = (targetMode: WorkMode): HistoryParams => {
+    const capabilities = targetMode === 'generate' ? selectedGenerateCapabilities : selectedEditCapabilities
+    return {
+      aspectRatio: capabilities.supportsAspectRatio ? aspectRatio : undefined,
+      imageSize: capabilities.supportsImageSize || capabilities.forcedImageSize
+        ? capabilities.forcedImageSize || imageSize
+        : undefined,
+      useGoogleSearch: targetMode === 'generate' && capabilities.supportsSearchGrounding ? useGoogleSearch : undefined,
+      useGoogleImageSearch: targetMode === 'generate' && capabilities.supportsImageSearchGrounding
+        ? useGoogleImageSearch
+        : undefined,
+      thinkingLevel: targetMode === 'generate' && capabilities.supportsThinkingConfig ? thinkingLevel : undefined,
+      referenceImages: (targetMode === 'generate' ? referenceImages : editImages).map(imageToHistoryReference),
+    }
+  }
+
   const saveGeneratedImageToHistory = (params: {
     image: string
     text?: string
     prompt: string
     mode: WorkMode
     model: string
+    historyParams?: HistoryParams
   }) => {
     const entry: HistoryItem = {
       id: `hist_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
@@ -418,11 +603,94 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
       mode: params.mode,
       model: params.model,
       createdAt: Date.now(),
+      params: params.historyParams,
     }
 
     setHistoryItems((prev) => [entry, ...prev].slice(0, historyLimit))
     addDebugLog('history_saved', { mode: params.mode, model: params.model })
   }
+
+  const applyHistoryItemState = useCallback((item: HistoryItem) => {
+    setPrompt(item.prompt)
+    setMode(item.mode)
+
+    if (item.mode === 'generate') {
+      setGenerateModel(item.model)
+    } else {
+      setEditModel(item.model)
+    }
+
+    if (item.params?.aspectRatio) setAspectRatio(item.params.aspectRatio)
+    if (item.params?.imageSize) setImageSize(item.params.imageSize)
+    if (typeof item.params?.useGoogleSearch === 'boolean') setUseGoogleSearch(item.params.useGoogleSearch)
+    if (typeof item.params?.useGoogleImageSearch === 'boolean') {
+      setUseGoogleImageSearch(item.params.useGoogleImageSearch)
+    }
+    if (item.params?.thinkingLevel) setThinkingLevel(item.params.thinkingLevel)
+
+    const restoredImages = (item.params?.referenceImages || []).map((img, index) => ({
+      id: `hist_ref_${item.id}_${index}`,
+      preview: img.preview,
+      base64: img.base64,
+      mimeType: img.mimeType,
+    }))
+
+    if (item.mode === 'generate') {
+      setReferenceImages(restoredImages)
+      setEditImages([])
+    } else {
+      setEditImages(restoredImages)
+      setReferenceImages([])
+    }
+
+    setGeneratedImage(item.image)
+    setGeneratedText(item.text || '')
+    setSelectedHistoryItem(null)
+  }, [])
+
+  const reuseHistoryItem = useCallback((item: HistoryItem) => {
+    if (pathname !== '/') {
+      sessionStorage.setItem(HISTORY_REUSE_KEY, JSON.stringify(item))
+      setSelectedHistoryItem(null)
+      router.push('/')
+      return
+    }
+
+    applyHistoryItemState(item)
+  }, [applyHistoryItemState, pathname, router])
+
+  useEffect(() => {
+    if (pathname !== '/') return
+
+    const raw = sessionStorage.getItem(HISTORY_REUSE_KEY)
+    if (!raw) return
+
+    sessionStorage.removeItem(HISTORY_REUSE_KEY)
+    try {
+      const item = JSON.parse(raw) as HistoryItem
+      if (item?.id && item.prompt !== undefined) {
+        setPendingReuseItem(item)
+      }
+    } catch {
+      // Ignore malformed one-time reuse payloads.
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    if (!pendingReuseItem) return
+    if (!prefsHydrated) return
+
+    const modelsForMode = pendingReuseItem.mode === 'generate' ? generateModels : editModels
+    if (modelsForMode.length === 0) return
+
+    const modelExists = modelsForMode.some((model) => model.id === pendingReuseItem.model)
+    if (!modelExists) {
+      setNotice(t('messages.modelAutoSwitched'))
+    }
+
+    applyHistoryItemState(pendingReuseItem)
+    setPendingReuseItem(null)
+  }, [applyHistoryItemState, editModels, generateModels, pendingReuseItem, prefsHydrated, t])
 
   const moveHistoryItemToTrash = (id: string) => {
     const target = historyItems.find((item) => item.id === id)
@@ -663,7 +931,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
     setError('')
     setNotice(t('messages.settingsSaved'))
-    setSettingsOpen(false)
+    closeSettings()
     loadModels({ silent: true })
   }
 
@@ -975,6 +1243,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             prompt,
             mode: 'generate',
             model: generateModel,
+            historyParams: getCurrentHistoryParams('generate'),
           })
         })
       }
@@ -1062,6 +1331,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
           prompt,
           mode: 'edit',
           model: editModel,
+          historyParams: getCurrentHistoryParams('edit'),
         })
       }
       if (data.text) setGeneratedText(data.text)
@@ -1242,6 +1512,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
     if (generateModels.length === 0) {
       return
     }
+    if (pendingReuseModeRef.current === 'generate') {
+      return
+    }
     const generateModelIdSet = new Set(generateModels.map((item) => item.id))
     if (!generateModelIdSet.has(generateModel)) {
       setGenerateModel(generateModels[0].id)
@@ -1251,6 +1524,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
   useEffect(() => {
     if (editModels.length === 0) {
+      return
+    }
+    if (pendingReuseModeRef.current === 'edit') {
       return
     }
     const editModelIdSet = new Set(editModels.map((item) => item.id))
@@ -1280,7 +1556,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
   useEffect(() => {
     if (!selectedGenerateCapabilities.supportsImageSearchGrounding && useGoogleImageSearch) {
       setUseGoogleImageSearch(false)
-      setNotice(t('messages.imageSearchNotSupported'))
+      setNotice(t('hints.imageSearchNotSupported'))
     }
   }, [selectedGenerateCapabilities.supportsImageSearchGrounding, useGoogleImageSearch, t])
 
@@ -1455,9 +1731,12 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
           {target === 'generate' ? t('labels.referenceImages') : t('labels.editMaterials')}
         </p>
         <div className='flex flex-wrap gap-2'>
-          {images.map((img) => (
+          {images.map((img, index) => (
             <div key={img.id} className='relative w-14 h-14 rounded-lg overflow-hidden group border border-border-subtle flex-shrink-0'>
               <Image src={img.preview} alt='ref' fill className='object-cover' />
+              <span className='absolute left-1 top-1 z-10 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold leading-none text-primary-foreground shadow-sm'>
+                {index + 1}
+              </span>
               <button
                 onClick={() => removeImage(target, img.id)}
                 className='absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'
@@ -1474,11 +1753,28 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                 ? 'border-primary bg-primary/10'
                 : 'border-border-subtle hover:border-border hover:bg-surface-hover'
             )}
-            onDragOver={(e) => { e.preventDefault(); target === 'generate' ? setIsReferenceDragActive(true) : setIsEditDragActive(true) }}
-            onDragLeave={() => { target === 'generate' ? setIsReferenceDragActive(false) : setIsEditDragActive(false) }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              if (target === 'generate') {
+                setIsReferenceDragActive(true)
+              } else {
+                setIsEditDragActive(true)
+              }
+            }}
+            onDragLeave={() => {
+              if (target === 'generate') {
+                setIsReferenceDragActive(false)
+              } else {
+                setIsEditDragActive(false)
+              }
+            }}
             onDrop={(e) => {
               e.preventDefault()
-              target === 'generate' ? setIsReferenceDragActive(false) : setIsEditDragActive(false)
+              if (target === 'generate') {
+                setIsReferenceDragActive(false)
+              } else {
+                setIsEditDragActive(false)
+              }
               addImages(Array.from(e.dataTransfer.files || []), target)
             }}
           >
@@ -1509,8 +1805,8 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
         aria-label='Workspace navigation'
       >
         {/* Logo mark */}
-        <div className='mb-4 flex items-center justify-center w-9 h-9 rounded-xl bg-primary/15 border border-primary/20'>
-          <Sparkles className='h-4 w-4 text-primary' aria-hidden='true' />
+        <div className='mb-4 flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden'>
+          <Image src='/icon.svg' alt='Gemini Studio' width={36} height={36} className='h-9 w-9' priority />
         </div>
 
         <div className='flex flex-col gap-1 flex-1'>
@@ -1566,7 +1862,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             <GitHubIcon />
           </a>
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={openSettings}
             title={t('actions.settings')}
             aria-label={t('actions.settings')}
             className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200'
@@ -1622,7 +1918,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
               })}
             </nav>
             <div className='mt-auto pt-4 border-t border-border-subtle flex flex-col gap-1'>
-              <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false) }}
+              <button onClick={() => { openSettings(); setMobileMenuOpen(false) }}
                 className='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200'>
                 <Settings className='h-4 w-4' />
                 {t('actions.settings')}
@@ -1658,7 +1954,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
               {/* Generated image */}
               {!loading && generatedImage && (
-                <div className='relative w-full h-full flex items-center justify-center p-4 lg:p-8 group'>
+                <div className='relative w-full h-full flex items-center justify-center p-4 pb-28 lg:p-8 lg:pb-36 group'>
                   {imageLoading && (
                     <div className='absolute inset-0 flex items-center justify-center z-10'>
                       <Loader2 className='h-6 w-6 animate-spin text-primary' />
@@ -1673,7 +1969,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                     onLoad={() => setImageLoading(false)}
                     onClick={() => setPreviewImage(generatedImage)}
                     className={cn(
-                      'max-w-full max-h-full object-contain rounded-xl shadow-2xl cursor-zoom-in transition-opacity duration-500',
+                      'aspect-video w-[min(78vw,980px)] max-h-[calc(100dvh-14rem)] object-cover rounded-xl shadow-2xl cursor-zoom-in transition-opacity duration-500',
                       imageLoading ? 'opacity-0' : 'opacity-100'
                     )}
                   />
@@ -1696,7 +1992,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         <Download className='h-4 w-4' />
                       </button>
                       {autoSaveToHistory && (
-                        <button onClick={() => saveGeneratedImageToHistory({ image: generatedImage, text: generatedText, prompt, mode, model: mode === 'generate' ? generateModel : editModel })}
+                        <button onClick={() => saveGeneratedImageToHistory({ image: generatedImage, text: generatedText, prompt, mode, model: mode === 'generate' ? generateModel : editModel, historyParams: getCurrentHistoryParams(mode) })}
                           className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all duration-150'
                           aria-label='Save to history'>
                           <History className='h-4 w-4' />
@@ -1711,10 +2007,15 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
               {!loading && !generatedImage && (
                 <div className='flex flex-col items-center gap-4 text-center px-8 select-none'>
                   <div className='relative'>
-                    <div className='w-20 h-20 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center'>
-                      <Sparkles className='h-9 w-9 text-primary/40' />
+                    <div className='w-20 h-20 rounded-2xl overflow-hidden'>
+                      <Image
+                        src='/AD634768C54F6ABBBEC10908B55884C6.png'
+                        alt=''
+                        width={80}
+                        height={80}
+                        className='h-20 w-20 object-cover'
+                      />
                     </div>
-                    <div className='absolute inset-0 rounded-2xl animate-shimmer' aria-hidden='true' />
                   </div>
                   <div>
                     <p className='text-base font-medium text-foreground/60'>{t('messages.noContent')}</p>
@@ -1722,14 +2023,6 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                       {!apiKey ? t('messages.fillApi') : (mode === 'generate' ? t('placeholders.promptGenerate') : t('placeholders.promptEdit'))}
                     </p>
                   </div>
-                  {!apiKey && (
-                    <button
-                      onClick={() => setSettingsOpen(true)}
-                      className='mt-1 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-medium hover:bg-primary/15 transition-colors'
-                    >
-                      {t('actions.settings')}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -1768,7 +2061,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
             {/* Floating prompt bar */}
             <div className='absolute bottom-5 left-1/2 -translate-x-1/2 w-[min(820px,calc(100vw-2rem))] z-20'>
-              <div className='prompt-bar rounded-2xl px-3 py-2.5 flex items-end gap-2 shadow-2xl'>
+              <div className='prompt-bar rounded-full px-3 py-2.5 flex items-end gap-2 shadow-2xl'>
                 {/* Mode toggle capsule */}
                 <div className='relative flex-shrink-0 grid grid-cols-2 bg-surface-hover rounded-full p-0.5 self-center overflow-hidden' role='group' aria-label='Generation mode'>
                   <span
@@ -1830,20 +2123,14 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   onClick={mode === 'generate' ? handleGenerate : handleEdit}
                   disabled={loading}
                   aria-label={t('actions.generate')}
-                  className='flex-shrink-0 self-center h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5 hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all duration-150 shadow-[0_2px_12px] shadow-primary/30'
+                  className='flex-shrink-0 self-center size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all duration-150 shadow-[0_2px_12px] shadow-primary/30'
                 >
                   {loading
                     ? <Loader2 className='h-4 w-4 animate-spin' />
-                    : <Sparkles className='h-4 w-4' />
+                    : <ArrowUp className='h-5 w-5' />
                   }
-                  <span className='hidden sm:inline'>{loading ? t('messages.processing') : t('actions.generate')}</span>
                 </button>
               </div>
-
-              {/* Keyboard hint */}
-              <p className='text-center mt-1.5 text-[10px] text-muted-foreground opacity-50 select-none'>
-                <kbd className='font-mono'>⌘</kbd> + <kbd className='font-mono'>Enter</kbd> {t('actions.generate')}
-              </p>
             </div>
           </main>
 
@@ -1851,11 +2138,11 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
           <aside
             className={cn(
               'hidden lg:flex flex-col flex-shrink-0 panel-shadow-right overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
-              'w-[300px]'
+              'w-[360px]'
             )}
             aria-label='Generation parameters'
           >
-            <div className='flex-1 overflow-y-auto p-4 space-y-5 pb-36'>
+            <div className='flex-1 overflow-y-auto p-5 space-y-5 pb-36'>
               {/* Header */}
               <div className='flex items-center justify-between pt-1'>
                 <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>Parameters</p>
@@ -1872,13 +2159,14 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                 <Select
                   value={mode === 'generate' ? generateModel : editModel}
                   onValueChange={mode === 'generate' ? setGenerateModel : setEditModel}
+                  disabled={(mode === 'generate' ? generateModels : editModels).length === 0}
                 >
-                  <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle focus:ring-primary/30'>
+                  <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50'>
                     <SelectValue placeholder={t('placeholders.selectModel')} />
                   </SelectTrigger>
                   <SelectContent>
                     {(mode === 'generate' ? generateModels : editModels).map((m) => (
-                      <SelectItem key={m.id} value={m.id} className='text-xs'>{m.displayName || m.id}</SelectItem>
+                      <SelectItem key={m.id} value={m.id} className='text-xs'>{formatModelName(m.displayName || m.id)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -2033,8 +2321,15 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
           <div className='max-w-[1400px] mx-auto'>
             {/* Header */}
             <div className='flex flex-wrap items-center gap-3 mb-6'>
-              <h1 className='text-xl font-bold'>{t('nav.history')}</h1>
-              <span className='text-sm text-muted-foreground'>{t('messages.historyCount', { count: historyItems.length })}</span>
+              <div className='flex min-w-0 items-center gap-3'>
+                <div className='flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10'>
+                  <History className='h-5 w-5 text-primary' aria-hidden='true' />
+                </div>
+                <div className='min-w-0'>
+                  <h1 className='text-xl font-bold leading-tight'>{t('nav.history')}</h1>
+                  <p className='text-xs text-muted-foreground mt-0.5'>{t('messages.historyCount', { count: historyItems.length })}</p>
+                </div>
+              </div>
 
               {historyItems.length > 0 && (
                 <>
@@ -2091,6 +2386,17 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                     return (
                       <div
                         key={item.id}
+                        role={!isSelectionMode ? 'button' : undefined}
+                        tabIndex={!isSelectionMode ? 0 : undefined}
+                        onClick={() => {
+                          if (!isSelectionMode) setSelectedHistoryItem(item)
+                        }}
+                        onKeyDown={(event) => {
+                          if (!isSelectionMode && (event.key === 'Enter' || event.key === ' ')) {
+                            event.preventDefault()
+                            setSelectedHistoryItem(item)
+                          }
+                        }}
                         className={cn(
                           'group relative rounded-xl overflow-hidden border transition-all duration-200 hover-lift',
                           isSelectionMode && isSelected
@@ -2109,7 +2415,11 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                               className='absolute inset-0 z-10 cursor-pointer'
                               onClick={() => setSelectedHistoryIds((prev) => {
                                 const next = new Set(prev)
-                                next.has(item.id) ? next.delete(item.id) : next.add(item.id)
+                                if (next.has(item.id)) {
+                                  next.delete(item.id)
+                                } else {
+                                  next.add(item.id)
+                                }
                                 return next
                               })}
                               aria-label={isSelected ? 'Deselect' : 'Select'}
@@ -2134,14 +2444,14 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                           {!isSelectionMode && (
                             <div className='absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'>
                               <button
-                                onClick={() => { setGeneratedImage(item.image); setGeneratedText(item.text || ''); setMode(item.mode); router.push('/') }}
+                                onClick={(event) => { event.stopPropagation(); reuseHistoryItem(item) }}
                                 className='w-8 h-8 rounded-lg bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-[var(--image-control-hover)] transition-colors'
                                 aria-label='Use in studio'
                               >
                                 <Undo2 className='h-3.5 w-3.5' />
                               </button>
                               <button
-                                onClick={() => moveHistoryItemToTrash(item.id)}
+                                onClick={(event) => { event.stopPropagation(); moveHistoryItemToTrash(item.id) }}
                                 className='w-8 h-8 rounded-lg bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-red-500/50 transition-colors'
                                 aria-label='Move to trash'
                               >
@@ -2159,7 +2469,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         </div>
 
                         <div className='px-2 py-1.5'>
-                          <p className='text-[9px] text-muted-foreground uppercase font-semibold truncate tracking-wide'>{item.model}</p>
+                          <p className='text-[9px] text-muted-foreground font-semibold truncate'>{formatModelName(item.model)}</p>
                           <p className='text-[11px] text-foreground/70 truncate mt-0.5 leading-tight'>{item.prompt}</p>
                         </div>
                       </div>
@@ -2186,15 +2496,20 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
       {workspacePage === 'trash' && (
         <main className='flex-1 min-w-0 overflow-y-auto p-6 pt-16 lg:pt-6'>
           <div className='max-w-[1400px] mx-auto'>
-            <div className='flex items-center justify-between mb-6'>
-              <div>
-                <h1 className='text-xl font-bold'>{t('nav.trash')}</h1>
-                <p className='text-xs text-muted-foreground mt-0.5'>{trashItems.length} {t('nav.trash').toLowerCase()}</p>
+            <div className='flex flex-wrap items-center gap-3 mb-6'>
+              <div className='flex min-w-0 items-center gap-3'>
+                <div className='flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10'>
+                  <Trash2 className='h-5 w-5 text-primary' aria-hidden='true' />
+                </div>
+                <div className='min-w-0'>
+                  <h1 className='text-xl font-bold leading-tight'>{t('nav.trash')}</h1>
+                  <p className='text-xs text-muted-foreground mt-0.5'>{t('messages.historyCount', { count: trashItems.length })}</p>
+                </div>
               </div>
               <Button
                 variant='outline'
                 size='sm'
-                className='border-border-subtle text-muted-foreground hover:text-foreground hover:border-border'
+                className='ml-auto border-border-subtle text-muted-foreground hover:text-foreground hover:border-border'
                 onClick={() => { if (window.confirm(t('messages.confirmClearTrash'))) clearTrash() }}
                 disabled={trashItems.length === 0}
               >
@@ -2275,14 +2590,19 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
         <div
           role='alert'
           aria-live='assertive'
-          className='fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-[120] max-w-sm px-4 py-3 glass-panel rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-4 fade-in duration-200'
+          className={cn(
+            'fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-[120] max-w-sm px-4 py-3 rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl flex items-center gap-3',
+            toastClosing
+              ? 'animate-out slide-out-to-right-6 fade-out duration-200 ease-in'
+              : 'animate-in slide-in-from-right-6 fade-in duration-200 ease-out'
+          )}
         >
           {error
             ? <AlertCircle className='h-4 w-4 text-destructive flex-shrink-0' aria-hidden='true' />
-            : <CheckCircle2 className='h-4 w-4 text-green-400 flex-shrink-0' aria-hidden='true' />
+            : <CheckCircle2 className='h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0' aria-hidden='true' />
           }
           <span className='text-sm font-medium flex-1'>{error || notice}</span>
-          <button onClick={() => { setError(''); setNotice('') }} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss'>
+          <button onClick={closeToast} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss'>
             <X className='h-4 w-4' />
           </button>
         </div>
@@ -2290,33 +2610,136 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
       {/* ── Update available banner ── */}
       {updateAvailable && (
-        <div className='fixed top-14 lg:top-4 right-4 z-50 glass-panel rounded-xl p-3 shadow-2xl flex items-center gap-3 max-w-xs animate-in slide-in-from-top-4 fade-in duration-200'>
+        <div
+          className={cn(
+            'fixed top-14 lg:top-4 right-4 z-50 rounded-xl border border-border bg-popover text-popover-foreground p-3 shadow-2xl flex items-center gap-3 max-w-xs',
+            updateClosing
+              ? 'animate-out slide-out-to-right-6 fade-out duration-200 ease-in'
+              : 'animate-in slide-in-from-right-6 fade-in duration-200 ease-out'
+          )}
+        >
           <Sparkles className='h-4 w-4 text-primary flex-shrink-0' aria-hidden='true' />
           <p className='text-xs text-foreground/80 flex-1'>{t('messages.updateAvailable', { version: latestVersion })}</p>
           <a href='https://github.com/qwq202/ai-img/releases' target='_blank' rel='noopener noreferrer'
             className='text-xs text-primary hover:text-primary/80 underline flex-shrink-0'>{t('messages.viewUpdate')}</a>
-          <button onClick={() => setUpdateAvailable(false)} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss update notice'>
+          <button onClick={closeUpdateNotice} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss update notice'>
             <X className='h-3.5 w-3.5' />
           </button>
         </div>
       )}
 
+      {/* ── History detail dialog ── */}
+      {selectedHistoryItem && (
+        <div className='fixed inset-0 z-[70] flex items-center justify-center p-4' onClick={() => setSelectedHistoryItem(null)}>
+          <div className='absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200' aria-hidden='true' />
+          <div
+            className='relative z-10 w-full max-w-[720px] max-h-[min(760px,calc(100dvh-2rem))] overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in zoom-in-95 fade-in duration-200'
+            role='dialog'
+            aria-modal='true'
+            aria-label='History detail'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className='flex items-center justify-between gap-3 p-5'>
+              <div className='min-w-0'>
+                <h2 className='text-base font-semibold leading-tight'>历史详情</h2>
+                <p className='mt-1 truncate text-xs text-muted-foreground'>{formatModelName(selectedHistoryItem.model)}</p>
+              </div>
+              <button
+                onClick={() => setSelectedHistoryItem(null)}
+                className='flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground'
+                aria-label='Close history detail'
+              >
+                <X className='h-4 w-4' />
+              </button>
+            </div>
+
+            <div className='grid max-h-[calc(min(760px,100dvh-2rem)-136px)] overflow-y-auto md:grid-cols-[240px_1fr]'>
+              <div className='p-5 pt-0'>
+                <div className='relative aspect-square overflow-hidden rounded-xl border border-border-subtle bg-surface'>
+                  <Image src={selectedHistoryItem.image} alt={selectedHistoryItem.prompt || 'history item'} fill className='object-cover' />
+                </div>
+              </div>
+              <div className='space-y-4 p-5 pt-0'>
+                <div>
+                  <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>Prompt</p>
+                  <p className='mt-1 text-sm leading-relaxed text-foreground/80'>{selectedHistoryItem.prompt}</p>
+                </div>
+
+                <div className='grid grid-cols-2 gap-2 text-sm'>
+                  {[
+                    ['模式', selectedHistoryItem.mode === 'generate' ? t('modes.generate') : t('modes.edit')],
+                    [t('labels.ratio'), selectedHistoryItem.params?.aspectRatio || '未记录'],
+                    [t('labels.resolution'), selectedHistoryItem.params?.imageSize || '未记录'],
+                    [t('labels.googleSearch'), selectedHistoryItem.params?.useGoogleSearch === undefined ? '未记录' : (selectedHistoryItem.params.useGoogleSearch ? '开启' : '关闭')],
+                    [t('labels.googleImageSearch'), selectedHistoryItem.params?.useGoogleImageSearch === undefined ? '未记录' : (selectedHistoryItem.params.useGoogleImageSearch ? '开启' : '关闭')],
+                    [t('labels.thinkingLevel'), selectedHistoryItem.params?.thinkingLevel || '未记录'],
+                  ].map(([label, value]) => (
+                    <div key={label} className='rounded-xl border border-border-subtle bg-surface p-3'>
+                      <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>{label}</p>
+                      <p className='mt-1 truncate font-medium'>{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>{selectedHistoryItem.mode === 'generate' ? t('labels.referenceImages') : t('labels.editMaterials')}</p>
+                  {selectedHistoryItem.params?.referenceImages?.length ? (
+                    <div className='mt-2 flex flex-wrap gap-2'>
+                      {selectedHistoryItem.params.referenceImages.map((img, index) => (
+                        <div key={`${img.preview}_${index}`} className='relative size-16 overflow-hidden rounded-xl border border-border-subtle bg-surface'>
+                          <Image src={img.preview} alt='' fill className='object-cover' />
+                          <span className='absolute left-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold leading-none text-primary-foreground shadow-sm'>
+                            {index + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='mt-2 text-sm text-muted-foreground'>未记录</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className='flex justify-end gap-3 p-5'>
+              <Button variant='outline' onClick={() => setSelectedHistoryItem(null)}>
+                {t('actions.cancel')}
+              </Button>
+              <Button onClick={() => reuseHistoryItem(selectedHistoryItem)}>
+                复用
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Settings drawer ── */}
       {settingsOpen && (
-        <div className='fixed inset-0 z-[60] flex justify-end' onClick={() => setSettingsOpen(false)}>
-          <div className='absolute inset-0 bg-black/50 backdrop-blur-sm' aria-hidden='true' />
+        <div className='fixed inset-0 z-[60] flex justify-end' onClick={closeSettings}>
+          <div
+            className={cn(
+              'absolute inset-0 bg-black/50 backdrop-blur-sm',
+              settingsClosing ? 'animate-out fade-out duration-200' : 'animate-in fade-in duration-200'
+            )}
+            aria-hidden='true'
+          />
           <aside
-            className='relative w-full max-w-[360px] h-full glass-panel shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right-8 duration-300'
+            className={cn(
+              'relative w-full max-w-[360px] h-full glass-panel shadow-2xl flex flex-col overflow-hidden',
+              settingsClosing
+                ? 'animate-out slide-out-to-right-8 duration-200 ease-in'
+                : 'animate-in slide-in-from-right-8 duration-300 ease-out'
+            )}
             onClick={(e) => e.stopPropagation()}
             aria-label='Settings'
           >
             {/* Drawer header */}
-            <div className='flex items-center justify-between p-5 border-b border-border-subtle'>
+            <div className='flex items-center justify-between p-5'>
               <div>
                 <h2 className='text-base font-semibold'>{t('settings.title')}</h2>
                 <p className='text-[10px] text-muted-foreground mt-0.5'>v{CURRENT_VERSION}</p>
               </div>
-              <button onClick={() => setSettingsOpen(false)}
+              <button onClick={closeSettings}
                 className='w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all'
                 aria-label='Close settings'>
                 <X className='h-4 w-4' />
@@ -2342,12 +2765,12 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                 </div>
                 <div className='space-y-1.5'>
                   <Label className='text-xs'>{t('settings.promptOptimizerModel')}</Label>
-                  <Select value={optimizeModel} onValueChange={setOptimizeModel}>
-                    <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle'>
+                  <Select value={optimizeModel} onValueChange={setOptimizeModel} disabled={promptModels.length === 0}>
+                    <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle disabled:cursor-not-allowed disabled:opacity-50'>
                       <SelectValue placeholder={t('settings.selectModel')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {promptModels.map((m) => <SelectItem key={m} value={m} className='text-xs'>{m}</SelectItem>)}
+                      {promptModels.map((m) => <SelectItem key={m} value={m} className='text-xs'>{formatModelName(m)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2388,7 +2811,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             </div>
 
             {/* Drawer footer actions */}
-            <div className='p-5 border-t border-border-subtle flex gap-3'>
+            <div className='p-5 flex gap-3'>
               <Button variant='outline' className='flex-1 h-9 text-xs border-border-subtle hover:border-border' onClick={handleTestConnection} disabled={connectionTesting}>
                 {connectionTesting ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
                 {connectionTesting ? t('actions.testing') : t('actions.test')}

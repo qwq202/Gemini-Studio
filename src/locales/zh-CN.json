@@ -80,7 +80,7 @@
     "savedToHistory": "已生成 {count} 张图片，并保存到历史",
     "generatedNotSaved": "已生成 {count} 张图片（未自动保存）",
     "noContent": "暂无内容",
-    "historyCount": "{count} items",
+    "historyCount": "{count} 项",
     "noHistory": "暂无历史记录",
     "noHistoryHint": "生成的图片会自动保存在这里",
     "trashEmpty": "回收站为空",
