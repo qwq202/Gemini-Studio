@@ -1456,7 +1456,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
         </p>
         <div className='flex flex-wrap gap-2'>
           {images.map((img) => (
-            <div key={img.id} className='relative w-14 h-14 rounded-lg overflow-hidden group border border-white/10 flex-shrink-0'>
+            <div key={img.id} className='relative w-14 h-14 rounded-lg overflow-hidden group border border-border-subtle flex-shrink-0'>
               <Image src={img.preview} alt='ref' fill className='object-cover' />
               <button
                 onClick={() => removeImage(target, img.id)}
@@ -1472,7 +1472,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
               'w-14 h-14 border border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 flex-shrink-0',
               isActive
                 ? 'border-primary bg-primary/10'
-                : 'border-white/15 hover:border-white/30 hover:bg-white/5'
+                : 'border-border-subtle hover:border-border hover:bg-surface-hover'
             )}
             onDragOver={(e) => { e.preventDefault(); target === 'generate' ? setIsReferenceDragActive(true) : setIsEditDragActive(true) }}
             onDragLeave={() => { target === 'generate' ? setIsReferenceDragActive(false) : setIsEditDragActive(false) }}
@@ -1527,7 +1527,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   'relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
                   active
                     ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:bg-white/6 hover:text-foreground'
+                    : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'
                 )}
               >
                 {active && (
@@ -1551,7 +1551,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             disabled={modelsLoading}
             title={t('actions.refreshModels')}
             aria-label={t('actions.refreshModels')}
-            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200 disabled:opacity-40'
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200 disabled:opacity-40'
           >
             <RefreshCw className={cn('h-4 w-4', modelsLoading && 'animate-spin')} />
           </button>
@@ -1561,7 +1561,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             rel='noopener noreferrer'
             title='GitHub'
             aria-label='GitHub repository'
-            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200'
           >
             <GitHubIcon />
           </a>
@@ -1569,7 +1569,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             onClick={() => setSettingsOpen(true)}
             title={t('actions.settings')}
             aria-label={t('actions.settings')}
-            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200'
           >
             <Settings className='h-4 w-4' />
           </button>
@@ -1612,7 +1612,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                     aria-current={active ? 'page' : undefined}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
-                      active ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-white/6 hover:text-foreground'
+                      active ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'
                     )}>
                     {item.icon}
                     {item.label}
@@ -1621,9 +1621,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                 )
               })}
             </nav>
-            <div className='mt-auto pt-4 border-t border-white/8 flex flex-col gap-1'>
+            <div className='mt-auto pt-4 border-t border-border-subtle flex flex-col gap-1'>
               <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false) }}
-                className='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'>
+                className='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-all duration-200'>
                 <Settings className='h-4 w-4' />
                 {t('actions.settings')}
               </button>
@@ -1681,23 +1681,23 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   {!imageLoading && (
                     <div className='absolute top-6 right-6 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0'>
                       <button onClick={() => setPreviewImage(generatedImage)}
-                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all duration-150'
                         aria-label='Fullscreen preview'>
                         <Maximize2 className='h-4 w-4' />
                       </button>
                       <button onClick={handleCopyImage}
-                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all duration-150'
                         aria-label='Copy image'>
                         <Copy className='h-4 w-4' />
                       </button>
                       <button onClick={handleDownload}
-                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all duration-150'
                         aria-label='Download image'>
                         <Download className='h-4 w-4' />
                       </button>
                       {autoSaveToHistory && (
                         <button onClick={() => saveGeneratedImageToHistory({ image: generatedImage, text: generatedText, prompt, mode, model: mode === 'generate' ? generateModel : editModel })}
-                          className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                          className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all duration-150'
                           aria-label='Save to history'>
                           <History className='h-4 w-4' />
                         </button>
@@ -1754,7 +1754,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                       'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all duration-150',
                       generatedImage === image
                         ? 'border-primary shadow-[0_0_0_2px] shadow-primary/40'
-                        : 'border-white/10 hover:border-white/25'
+                        : 'border-border-subtle hover:border-border'
                     )}
                   >
                     <Image src={image} alt={`result-${index + 1}`} fill className='object-cover' />
@@ -1770,13 +1770,20 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             <div className='absolute bottom-5 left-1/2 -translate-x-1/2 w-[min(820px,calc(100vw-2rem))] z-20'>
               <div className='prompt-bar rounded-2xl px-3 py-2.5 flex items-end gap-2 shadow-2xl'>
                 {/* Mode toggle capsule */}
-                <div className='flex-shrink-0 flex items-center bg-white/6 rounded-xl p-0.5 self-center' role='group' aria-label='Generation mode'>
+                <div className='relative flex-shrink-0 grid grid-cols-2 bg-surface-hover rounded-full p-0.5 self-center overflow-hidden' role='group' aria-label='Generation mode'>
+                  <span
+                    className={cn(
+                      'absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-primary shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none',
+                      mode === 'edit' && 'translate-x-full'
+                    )}
+                    aria-hidden='true'
+                  />
                   <button
                     onClick={() => setMode('generate')}
                     className={cn(
-                      'px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-all duration-200',
+                      'relative z-10 min-w-12 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors duration-150',
                       mode === 'generate'
-                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        ? 'text-primary-foreground'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-pressed={mode === 'generate'}
@@ -1786,9 +1793,9 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   <button
                     onClick={() => setMode('edit')}
                     className={cn(
-                      'px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-all duration-200',
+                      'relative z-10 min-w-12 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors duration-150',
                       mode === 'edit'
-                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        ? 'text-primary-foreground'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                     aria-pressed={mode === 'edit'}
@@ -1813,7 +1820,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   disabled={optimizing || !prompt.trim()}
                   title={t('hints.promptOptimizer')}
                   aria-label={t('actions.optimize')}
-                  className='flex-shrink-0 self-center w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 disabled:opacity-30 transition-all duration-150'
+                  className='flex-shrink-0 self-center w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-hover disabled:opacity-30 transition-all duration-150'
                 >
                   <Wand2 className={cn('h-4 w-4', optimizing && 'animate-spin')} />
                 </button>
@@ -1866,7 +1873,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   value={mode === 'generate' ? generateModel : editModel}
                   onValueChange={mode === 'generate' ? setGenerateModel : setEditModel}
                 >
-                  <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30'>
+                  <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle focus:ring-primary/30'>
                     <SelectValue placeholder={t('placeholders.selectModel')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1891,7 +1898,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         'px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all duration-150',
                         aspectRatio === r && activeCapabilities.supportsAspectRatio
                           ? 'bg-primary/15 border-primary/40 text-primary'
-                          : 'border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground',
+                          : 'border-border-subtle text-muted-foreground hover:border-border hover:text-foreground',
                         !activeCapabilities.supportsAspectRatio && 'opacity-30 cursor-not-allowed'
                       )}
                     >
@@ -1915,7 +1922,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         'flex-1 py-1.5 text-[11px] font-medium rounded-lg border transition-all duration-150',
                         imageSize === size && activeCapabilities.supportsImageSize
                           ? 'bg-primary/15 border-primary/40 text-primary'
-                          : 'border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground',
+                          : 'border-border-subtle text-muted-foreground hover:border-border hover:text-foreground',
                         (!activeCapabilities.supportsImageSize || !!activeCapabilities.forcedImageSize) && 'opacity-30 cursor-not-allowed'
                       )}
                     >
@@ -1939,8 +1946,8 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   <div className={cn(
                     'flex items-center justify-between p-3 rounded-xl border transition-all duration-150',
                     selectedGenerateCapabilities.supportsSearchGrounding
-                      ? 'border-white/10 hover:border-white/18 bg-white/3'
-                      : 'border-white/6 bg-white/2 opacity-40 cursor-not-allowed'
+                      ? 'border-border-subtle hover:border-border-subtle bg-surface'
+                      : 'border-border-subtle bg-surface opacity-40 cursor-not-allowed'
                   )}>
                     <div>
                       <Label htmlFor='google-search' className={cn('text-xs font-medium cursor-pointer', !selectedGenerateCapabilities.supportsSearchGrounding && 'cursor-not-allowed')}>
@@ -1957,8 +1964,8 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   <div className={cn(
                     'flex items-center justify-between p-3 rounded-xl border transition-all duration-150',
                     selectedGenerateCapabilities.supportsImageSearchGrounding
-                      ? 'border-white/10 hover:border-white/18 bg-white/3'
-                      : 'border-white/6 bg-white/2 opacity-40 cursor-not-allowed'
+                      ? 'border-border-subtle hover:border-border-subtle bg-surface'
+                      : 'border-border-subtle bg-surface opacity-40 cursor-not-allowed'
                   )}>
                     <div>
                       <Label htmlFor='google-img-search' className={cn('text-xs font-medium cursor-pointer', !selectedGenerateCapabilities.supportsImageSearchGrounding && 'cursor-not-allowed')}>
@@ -1975,12 +1982,12 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   <div className={cn(
                     'space-y-2 p-3 rounded-xl border transition-all duration-150',
                     selectedGenerateCapabilities.supportsThinkingConfig
-                      ? 'border-white/10 bg-white/3'
-                      : 'border-white/6 bg-white/2 opacity-40'
+                      ? 'border-border-subtle bg-surface'
+                      : 'border-border-subtle bg-surface opacity-40'
                   )}>
                     <Label className='text-xs font-medium'>{t('labels.thinkingLevel')}</Label>
                     <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as 'minimal' | 'high')} disabled={!selectedGenerateCapabilities.supportsThinkingConfig}>
-                      <SelectTrigger className='h-8 text-xs bg-white/5 border-white/10'>
+                      <SelectTrigger className='h-8 text-xs bg-surface-hover border-border-subtle'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1991,7 +1998,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   </div>
 
                   {/* Generate count */}
-                  <div className='flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/3'>
+                  <div className='flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface'>
                     <div>
                       <Label htmlFor='generate-count' className='text-xs font-medium'>{t('labels.generateCount')}</Label>
                       <p className='text-[10px] text-muted-foreground mt-0.5'>{t('hints.generateCountHint')}</p>
@@ -2007,7 +2014,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         if (!Number.isFinite(next)) return
                         setGenerateCount(Math.max(1, Math.min(8, Math.floor(next))))
                       }}
-                      className='w-16 h-8 text-xs text-center bg-white/5 border-white/10 focus:ring-primary/30'
+                      className='w-16 h-8 text-xs text-center bg-surface-hover border-border-subtle focus:ring-primary/30'
                     />
                   </div>
                 </div>
@@ -2038,7 +2045,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                       setHistorySortMode(m)
                       if (m === 'custom') setHistoryCustomOrder(historyItems.map((i) => i.id))
                     }}
-                    className='ml-auto text-xs bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground'
+                    className='ml-auto text-xs bg-surface-hover border border-border-subtle rounded-lg px-2.5 py-1.5 text-foreground'
                     aria-label='Sort mode'
                   >
                     <option value='time'>{t('labels.sortByTime')}</option>
@@ -2088,7 +2095,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                           'group relative rounded-xl overflow-hidden border transition-all duration-200 hover-lift',
                           isSelectionMode && isSelected
                             ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
-                            : 'border-white/8 hover:border-white/20 bg-white/3',
+                            : 'border-border-subtle hover:border-border bg-surface',
                           historySortMode === 'custom' && 'cursor-grab active:cursor-grabbing'
                         )}
                       >
@@ -2128,21 +2135,21 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                             <div className='absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'>
                               <button
                                 onClick={() => { setGeneratedImage(item.image); setGeneratedText(item.text || ''); setMode(item.mode); router.push('/') }}
-                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                                className='w-8 h-8 rounded-lg bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-[var(--image-control-hover)] transition-colors'
                                 aria-label='Use in studio'
                               >
                                 <Undo2 className='h-3.5 w-3.5' />
                               </button>
                               <button
                                 onClick={() => moveHistoryItemToTrash(item.id)}
-                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500/50 transition-colors'
+                                className='w-8 h-8 rounded-lg bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-red-500/50 transition-colors'
                                 aria-label='Move to trash'
                               >
                                 <Trash2 className='h-3.5 w-3.5' />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.prompt); setNotice(t('messages.promptCopied')) }}
-                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                                className='w-8 h-8 rounded-lg bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-[var(--image-control-hover)] transition-colors'
                                 aria-label='Copy prompt'
                               >
                                 <Copy className='h-3.5 w-3.5' />
@@ -2161,7 +2168,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
                   {historyItems.length === 0 && (
                     <div className='col-span-full flex flex-col items-center justify-center py-24 text-muted-foreground gap-3'>
-                      <div className='w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center'>
+                      <div className='w-16 h-16 rounded-2xl bg-surface-hover border border-border-subtle flex items-center justify-center'>
                         <History className='h-7 w-7 opacity-30' />
                       </div>
                       <p className='text-sm font-medium'>{t('messages.noHistory')}</p>
@@ -2187,7 +2194,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
               <Button
                 variant='outline'
                 size='sm'
-                className='border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20'
+                className='border-border-subtle text-muted-foreground hover:text-foreground hover:border-border'
                 onClick={() => { if (window.confirm(t('messages.confirmClearTrash'))) clearTrash() }}
                 disabled={trashItems.length === 0}
               >
@@ -2197,20 +2204,20 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
             <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3'>
               {trashItems.map((item) => (
-                <div key={item.id} className='group relative rounded-xl overflow-hidden border border-white/6 bg-white/2 opacity-60 hover:opacity-100 transition-all duration-200 hover-lift'>
+                <div key={item.id} className='group relative rounded-xl overflow-hidden border border-border-subtle bg-surface opacity-60 hover:opacity-100 transition-all duration-200 hover-lift'>
                   <div className='aspect-square relative'>
                     <Image src={item.image} alt={item.prompt || 'trash item'} fill className='object-cover grayscale group-hover:grayscale-0 transition-all duration-300' />
                     <div className='absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40'>
                       <button
                         onClick={() => restoreTrashItem(item.id)}
-                        className='w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                        className='w-9 h-9 rounded-xl bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-[var(--image-control-hover)] transition-colors'
                         aria-label='Restore'
                       >
                         <RotateCcw className='h-4 w-4' />
                       </button>
                       <button
                         onClick={() => deleteTrashItemPermanently(item.id)}
-                        className='w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500/50 transition-colors'
+                        className='w-9 h-9 rounded-xl bg-[var(--image-control)] backdrop-blur-sm flex items-center justify-center text-[var(--image-control-foreground)] hover:bg-red-500/50 transition-colors'
                         aria-label='Delete permanently'
                       >
                         <X className='h-4 w-4' />
@@ -2225,7 +2232,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
               {trashItems.length === 0 && (
                 <div className='col-span-full flex flex-col items-center justify-center py-24 text-muted-foreground gap-3'>
-                  <div className='w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center'>
+                  <div className='w-16 h-16 rounded-2xl bg-surface-hover border border-border-subtle flex items-center justify-center'>
                     <Trash2 className='h-7 w-7 opacity-30' />
                   </div>
                   <p className='text-sm font-medium'>{t('messages.trashEmpty')}</p>
@@ -2304,13 +2311,13 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             aria-label='Settings'
           >
             {/* Drawer header */}
-            <div className='flex items-center justify-between p-5 border-b border-white/8'>
+            <div className='flex items-center justify-between p-5 border-b border-border-subtle'>
               <div>
                 <h2 className='text-base font-semibold'>{t('settings.title')}</h2>
                 <p className='text-[10px] text-muted-foreground mt-0.5'>v{CURRENT_VERSION}</p>
               </div>
               <button onClick={() => setSettingsOpen(false)}
-                className='w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 transition-all'
+                className='w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all'
                 aria-label='Close settings'>
                 <X className='h-4 w-4' />
               </button>
@@ -2325,18 +2332,18 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                   <Label className='text-xs'>{t('settings.apiKey')}</Label>
                   <Input type='password' value={apiKey} onChange={(e) => setApiKey(e.target.value)}
                     placeholder={t('placeholders.apiKeyPlaceholder')}
-                    className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30' />
+                    className='h-9 text-xs bg-surface-hover border-border-subtle focus:ring-primary/30' />
                 </div>
                 <div className='space-y-1.5'>
                   <Label className='text-xs'>{t('settings.apiUrl')}</Label>
                   <Input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)}
                     placeholder={t('placeholders.apiUrlPlaceholder')}
-                    className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30' />
+                    className='h-9 text-xs bg-surface-hover border-border-subtle focus:ring-primary/30' />
                 </div>
                 <div className='space-y-1.5'>
                   <Label className='text-xs'>{t('settings.promptOptimizerModel')}</Label>
                   <Select value={optimizeModel} onValueChange={setOptimizeModel}>
-                    <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10'>
+                    <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle'>
                       <SelectValue placeholder={t('settings.selectModel')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -2352,7 +2359,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                 <div className='space-y-1.5'>
                   <Label className='text-xs'>{t('settings.language')}</Label>
                   <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-                    <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10'>
+                    <SelectTrigger className='h-9 text-xs bg-surface-hover border-border-subtle'>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -2366,14 +2373,14 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='flex items-center justify-between p-3 rounded-xl border border-white/8 bg-white/3'>
+                <div className='flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface'>
                   <div>
                     <Label className='text-xs font-medium'>{t('settings.autoSaveToHistory')}</Label>
                     <p className='text-[10px] text-muted-foreground mt-0.5'>{t('hints.autoSaveHint')}</p>
                   </div>
                   <Switch checked={autoSaveToHistory} onCheckedChange={setAutoSaveToHistory} />
                 </div>
-                <div className='flex items-center justify-between p-3 rounded-xl border border-white/8 bg-white/3'>
+                <div className='flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface'>
                   <Label className='text-xs font-medium'>{t('settings.debugMode')}</Label>
                   <Switch checked={debugEnabled} onCheckedChange={setDebugEnabled} />
                 </div>
@@ -2381,8 +2388,8 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
             </div>
 
             {/* Drawer footer actions */}
-            <div className='p-5 border-t border-white/8 flex gap-3'>
-              <Button variant='outline' className='flex-1 h-9 text-xs border-white/10 hover:border-white/20' onClick={handleTestConnection} disabled={connectionTesting}>
+            <div className='p-5 border-t border-border-subtle flex gap-3'>
+              <Button variant='outline' className='flex-1 h-9 text-xs border-border-subtle hover:border-border' onClick={handleTestConnection} disabled={connectionTesting}>
                 {connectionTesting ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
                 {connectionTesting ? t('actions.testing') : t('actions.test')}
               </Button>
@@ -2404,7 +2411,7 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
           aria-label='Image preview'
         >
           <button
-            className='absolute top-4 right-4 w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all'
+            className='absolute top-4 right-4 w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-surface-hover transition-all'
             onClick={() => setPreviewImage(null)}
             aria-label='Close preview'
           >
