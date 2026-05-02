@@ -33,7 +33,6 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { cn } from '@/lib/utils'
 import { idbGet, idbSet } from '@/lib/indexeddb'
 import { useI18n, Locale } from '@/lib/i18n'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1433,395 +1432,569 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
 
   // --- UI Components ---
 
-  const sidebarLinks = [
-    { key: 'studio', label: t('nav.create'), href: '/', icon: <Sparkles className='h-4 w-4' /> },
-    { key: 'history', label: t('nav.history'), href: '/history', icon: <History className='h-4 w-4' />, count: historyItems.length },
-    { key: 'trash', label: t('nav.trash'), href: '/trash', icon: <Trash2 className='h-4 w-4' />, count: trashItems.length },
+  // Shared GitHub SVG
+  const GitHubIcon = () => (
+    <svg className='h-4 w-4' fill='currentColor' viewBox='0 0 24 24' aria-hidden='true'>
+      <path fillRule='evenodd' clipRule='evenodd' d='M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z' />
+    </svg>
+  )
+
+  const navItems = [
+    { key: 'studio' as WorkspacePage, href: '/', icon: <Sparkles className='h-5 w-5' />, label: t('nav.create') },
+    { key: 'history' as WorkspacePage, href: '/history', icon: <History className='h-5 w-5' />, label: t('nav.history'), count: historyItems.length },
+    { key: 'trash' as WorkspacePage, href: '/trash', icon: <Trash2 className='h-5 w-5' />, label: t('nav.trash'), count: trashItems.length },
   ]
 
-  return (
-    <div className='flex min-h-dvh bg-white text-slate-900 font-sans flex-col lg:flex-row'>
-      {/* Mobile Header */}
-      <header className='lg:hidden flex items-center justify-between p-4 border-b border-slate-100 bg-white sticky top-0 z-30'>
-        <div className='flex items-center gap-2'>
-           <span className='text-lg font-bold tracking-tight'>Gemini Studio</span>
+  // Shared image upload zone
+  const ImageUploadZone = ({ target }: { target: WorkMode }) => {
+    const isActive = target === 'generate' ? isReferenceDragActive : isEditDragActive
+    const images = target === 'generate' ? referenceImages : editImages
+    return (
+      <div className='space-y-2'>
+        <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>
+          {target === 'generate' ? t('labels.referenceImages') : t('labels.editMaterials')}
+        </p>
+        <div className='flex flex-wrap gap-2'>
+          {images.map((img) => (
+            <div key={img.id} className='relative w-14 h-14 rounded-lg overflow-hidden group border border-white/10 flex-shrink-0'>
+              <Image src={img.preview} alt='ref' fill className='object-cover' />
+              <button
+                onClick={() => removeImage(target, img.id)}
+                className='absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'
+                aria-label='Remove image'
+              >
+                <X className='h-3.5 w-3.5 text-white' />
+              </button>
+            </div>
+          ))}
+          <div
+            className={cn(
+              'w-14 h-14 border border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 flex-shrink-0',
+              isActive
+                ? 'border-primary bg-primary/10'
+                : 'border-white/15 hover:border-white/30 hover:bg-white/5'
+            )}
+            onDragOver={(e) => { e.preventDefault(); target === 'generate' ? setIsReferenceDragActive(true) : setIsEditDragActive(true) }}
+            onDragLeave={() => { target === 'generate' ? setIsReferenceDragActive(false) : setIsEditDragActive(false) }}
+            onDrop={(e) => {
+              e.preventDefault()
+              target === 'generate' ? setIsReferenceDragActive(false) : setIsEditDragActive(false)
+              addImages(Array.from(e.dataTransfer.files || []), target)
+            }}
+          >
+            <input
+              type='file'
+              multiple
+              accept='image/*'
+              className='hidden'
+              id={`upload-${target}`}
+              onChange={(e) => e.target.files && addImages(Array.from(e.target.files), target)}
+            />
+            <label htmlFor={`upload-${target}`} className='flex items-center justify-center w-full h-full cursor-pointer'>
+              <Upload className='h-4 w-4 text-muted-foreground' />
+            </label>
+          </div>
         </div>
-        <div className='flex items-center gap-1'>
+      </div>
+    )
+  }
+
+  return (
+    <div className='flex h-dvh w-full overflow-hidden bg-background text-foreground font-sans'>
+
+      {/* ── Left icon nav ── */}
+      <nav
+        className='hidden lg:flex flex-col items-center gap-1 py-4 px-2 panel-shadow-left flex-shrink-0'
+        style={{ width: 60 }}
+        aria-label='Workspace navigation'
+      >
+        {/* Logo mark */}
+        <div className='mb-4 flex items-center justify-center w-9 h-9 rounded-xl bg-primary/15 border border-primary/20'>
+          <Sparkles className='h-4 w-4 text-primary' aria-hidden='true' />
+        </div>
+
+        <div className='flex flex-col gap-1 flex-1'>
+          {navItems.map((item) => {
+            const active = workspacePage === item.key
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                title={item.label}
+                aria-label={item.label}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
+                  active
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:bg-white/6 hover:text-foreground'
+                )}
+              >
+                {active && (
+                  <span className='absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r-full' aria-hidden='true' />
+                )}
+                {item.icon}
+                {item.count ? (
+                  <span className='absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-primary/80 text-primary-foreground text-[10px] font-semibold rounded-full flex items-center justify-center px-1 leading-none'>
+                    {item.count > 99 ? '99+' : item.count}
+                  </span>
+                ) : null}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Bottom actions */}
+        <div className='flex flex-col gap-1 mt-auto'>
+          <button
+            onClick={() => loadModels()}
+            disabled={modelsLoading}
+            title={t('actions.refreshModels')}
+            aria-label={t('actions.refreshModels')}
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200 disabled:opacity-40'
+          >
+            <RefreshCw className={cn('h-4 w-4', modelsLoading && 'animate-spin')} />
+          </button>
           <a
             href='https://github.com/qwq202/ai-img'
             target='_blank'
             rel='noopener noreferrer'
-            className='p-2 hover:bg-slate-100 rounded-full transition-colors'
             title='GitHub'
+            aria-label='GitHub repository'
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'
           >
-            <svg className='h-5 w-5' fill='currentColor' viewBox='0 0 24 24'>
-              <path fillRule='evenodd' clipRule='evenodd' d='M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z' />
-            </svg>
+            <GitHubIcon />
           </a>
-          <Button variant='ghost' size='icon' onClick={() => setMobileMenuOpen(true)}>
-            <Menu className='h-5 w-5' />
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title={t('actions.settings')}
+            aria-label={t('actions.settings')}
+            className='flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'
+          >
+            <Settings className='h-4 w-4' />
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Mobile top bar ── */}
+      <header className='lg:hidden fixed top-0 inset-x-0 z-40 h-12 glass-panel flex items-center justify-between px-4'>
+        <div className='flex items-center gap-2'>
+          <Sparkles className='h-4 w-4 text-primary' aria-hidden='true' />
+          <span className='text-sm font-semibold tracking-tight'>Gemini Studio</span>
+        </div>
+        <div className='flex items-center gap-1'>
+          <a href='https://github.com/qwq202/ai-img' target='_blank' rel='noopener noreferrer'
+            className='p-2 text-muted-foreground hover:text-foreground rounded-lg transition-colors' aria-label='GitHub'>
+            <GitHubIcon />
+          </a>
+          <Button variant='ghost' size='icon' className='h-8 w-8' onClick={() => setMobileMenuOpen(true)} aria-label='Open menu'>
+            <Menu className='h-4 w-4' />
           </Button>
         </div>
       </header>
 
-      {/* Sidebar */}
-      <aside className={cn(
-        'border-r border-slate-100 bg-white flex flex-col p-4',
-        'lg:w-64 lg:fixed lg:h-full lg:translate-x-0 transition-transform duration-300 ease-in-out z-40',
-        'fixed inset-y-0 left-0 w-64 lg:shadow-none',
-        mobileMenuOpen ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full lg:translate-x-0'
-      )}>
-        <div className='flex items-center justify-between mb-8 px-2'>
-          <div>
-            <h1 className='text-xl font-bold tracking-tight text-slate-900'>Gemini Studio</h1>
-            <p className='text-xs text-slate-400 mt-1 font-medium tracking-wide uppercase'>Aesthetic & Pragmatic</p>
-          </div>
-          <Button variant='ghost' size='icon' className='lg:hidden -mr-2' onClick={() => setMobileMenuOpen(false)}>
-            <X className='h-5 w-5' />
-          </Button>
-        </div>
-
-        <nav className='flex-1 space-y-1'>
-          {sidebarLinks.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={cn(
-                'flex items-center justify-between px-3 py-2 text-sm rounded-sm transition-all duration-200 group border-l-2 border-transparent hover:border-slate-200 hover:bg-slate-50',
-                workspacePage === item.key
-                  ? 'bg-slate-50 text-slate-900 font-medium border-l-slate-900'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:pl-4'
-              )}
-            >
-              <div className='flex items-center gap-3'>
-                {item.icon}
-                {item.label}
-              </div>
-              {item.count ? <span className='text-xs text-slate-400'>{item.count}</span> : null}
-            </Link>
-          ))}
-        </nav>
-
-        <div className='space-y-2 mt-auto pt-4 border-t border-slate-100'>
-           <Button
-            variant='outline'
-            size='sm'
-            className='w-full justify-start text-slate-600 border-slate-200'
-            onClick={() => {
-              setSettingsOpen(true)
-              setMobileMenuOpen(false)
-            }}
-          >
-            <Settings className='mr-2 h-4 w-4' />
-            {t('actions.settings')}
-          </Button>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='w-full justify-start text-slate-400 hover:text-slate-600'
-            onClick={() => {
-              loadModels()
-              setMobileMenuOpen(false)
-            }}
-            disabled={modelsLoading}
-          >
-            <RefreshCw className={cn('mr-2 h-3 w-3', modelsLoading && 'animate-spin')} />
-            {t('actions.refreshModels')}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Mobile Overlay */}
+      {/* ── Mobile slide-over menu ── */}
       {mobileMenuOpen && (
-        <div className='lg:hidden fixed inset-0 bg-black/20 z-30 backdrop-blur-sm' onClick={() => setMobileMenuOpen(false)} />
+        <div className='lg:hidden fixed inset-0 z-50 flex'>
+          <div className='fixed inset-0 bg-black/60 backdrop-blur-sm' onClick={() => setMobileMenuOpen(false)} aria-hidden='true' />
+          <aside className='relative ml-auto w-64 h-full glass-panel flex flex-col p-4 shadow-2xl'>
+            <div className='flex items-center justify-between mb-6'>
+              <span className='font-semibold'>Gemini Studio</span>
+              <Button variant='ghost' size='icon' className='h-8 w-8' onClick={() => setMobileMenuOpen(false)} aria-label='Close menu'>
+                <X className='h-4 w-4' />
+              </Button>
+            </div>
+            <nav className='flex flex-col gap-1 flex-1'>
+              {navItems.map((item) => {
+                const active = workspacePage === item.key
+                return (
+                  <Link key={item.key} href={item.href} onClick={() => setMobileMenuOpen(false)}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                      active ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-white/6 hover:text-foreground'
+                    )}>
+                    {item.icon}
+                    {item.label}
+                    {item.count ? <span className='ml-auto text-xs text-muted-foreground'>{item.count}</span> : null}
+                  </Link>
+                )
+              })}
+            </nav>
+            <div className='mt-auto pt-4 border-t border-white/8 flex flex-col gap-1'>
+              <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false) }}
+                className='flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-white/6 hover:text-foreground transition-all duration-200'>
+                <Settings className='h-4 w-4' />
+                {t('actions.settings')}
+              </button>
+            </div>
+          </aside>
+        </div>
       )}
 
-      {/* Main Content */}
-      <main className='flex-1 lg:ml-64 p-4 lg:p-6 overflow-auto w-full'>
-        {/* Toast Notification */}
-        {(error || notice) && (
-          <div className={cn(
-            'fixed bottom-6 right-6 z-[120] px-4 py-3 rounded-md shadow-lg flex items-center gap-3 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in bg-white border border-slate-200 text-slate-800'
-          )}>
-            {error ? <AlertCircle className='h-5 w-5 text-red-500' /> : <CheckCircle2 className='h-5 w-5 text-green-500' />}
-            <span className='text-sm font-medium'>{error || notice}</span>
-            <button onClick={() => { setError(''); setNotice('') }} className='ml-2 opacity-70 hover:opacity-100'>
-              <X className='h-4 w-4' />
-            </button>
-          </div>
-        )}
+      {/* ── Studio workspace (canvas + right panel) ── */}
+      {workspacePage === 'studio' && (
+        <div className='flex flex-1 overflow-hidden min-w-0'>
 
-        {updateAvailable && (
-          <div className='fixed top-4 right-4 z-50 bg-blue-50 border border-blue-200 rounded-md p-3 shadow-lg flex items-center gap-3 max-w-sm'>
-            <Sparkles className='h-4 w-4 text-blue-500 flex-shrink-0' />
-            <div className='flex-1 min-w-0'>
-              <p className='text-sm text-blue-700'>
-                {t('messages.updateAvailable', { version: latestVersion })}
-              </p>
+          {/* Canvas area */}
+          <main className='flex-1 min-w-0 relative flex flex-col canvas-grid overflow-hidden pt-12 lg:pt-0'>
+
+            {/* Canvas content */}
+            <div className='flex-1 min-h-0 flex items-center justify-center relative overflow-hidden'>
+
+              {/* Loading state */}
+              {loading && (
+                <div className='flex flex-col items-center gap-6' role='status' aria-live='polite'>
+                  <div className='relative flex items-center justify-center'>
+                    <span className='absolute w-20 h-20 rounded-full border border-primary/20 animate-pulse-ring' aria-hidden='true' />
+                    <span className='absolute w-14 h-14 rounded-full border border-primary/30 animate-pulse-ring' style={{ animationDelay: '0.3s' }} aria-hidden='true' />
+                    <div className='w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center'>
+                      <Loader2 className='h-5 w-5 animate-spin text-primary' />
+                    </div>
+                  </div>
+                  <p className='text-sm text-muted-foreground font-medium animate-pulse tracking-wide'>{loadingMessage}</p>
+                </div>
+              )}
+
+              {/* Generated image */}
+              {!loading && generatedImage && (
+                <div className='relative w-full h-full flex items-center justify-center p-4 lg:p-8 group'>
+                  {imageLoading && (
+                    <div className='absolute inset-0 flex items-center justify-center z-10'>
+                      <Loader2 className='h-6 w-6 animate-spin text-primary' />
+                    </div>
+                  )}
+                  <Image
+                    src={generatedImage}
+                    alt={prompt || 'Generated image'}
+                    width={1024}
+                    height={1024}
+                    unoptimized
+                    onLoad={() => setImageLoading(false)}
+                    onClick={() => setPreviewImage(generatedImage)}
+                    className={cn(
+                      'max-w-full max-h-full object-contain rounded-xl shadow-2xl cursor-zoom-in transition-opacity duration-500',
+                      imageLoading ? 'opacity-0' : 'opacity-100'
+                    )}
+                  />
+                  {/* Floating image actions */}
+                  {!imageLoading && (
+                    <div className='absolute top-6 right-6 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0'>
+                      <button onClick={() => setPreviewImage(generatedImage)}
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        aria-label='Fullscreen preview'>
+                        <Maximize2 className='h-4 w-4' />
+                      </button>
+                      <button onClick={handleCopyImage}
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        aria-label='Copy image'>
+                        <Copy className='h-4 w-4' />
+                      </button>
+                      <button onClick={handleDownload}
+                        className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                        aria-label='Download image'>
+                        <Download className='h-4 w-4' />
+                      </button>
+                      {autoSaveToHistory && (
+                        <button onClick={() => saveGeneratedImageToHistory({ image: generatedImage, text: generatedText, prompt, mode, model: mode === 'generate' ? generateModel : editModel })}
+                          className='w-9 h-9 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all duration-150'
+                          aria-label='Save to history'>
+                          <History className='h-4 w-4' />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!loading && !generatedImage && (
+                <div className='flex flex-col items-center gap-4 text-center px-8 select-none'>
+                  <div className='relative'>
+                    <div className='w-20 h-20 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center'>
+                      <Sparkles className='h-9 w-9 text-primary/40' />
+                    </div>
+                    <div className='absolute inset-0 rounded-2xl animate-shimmer' aria-hidden='true' />
+                  </div>
+                  <div>
+                    <p className='text-base font-medium text-foreground/60'>{t('messages.noContent')}</p>
+                    <p className='text-sm text-muted-foreground mt-1'>
+                      {!apiKey ? t('messages.fillApi') : (mode === 'generate' ? t('placeholders.promptGenerate') : t('placeholders.promptEdit'))}
+                    </p>
+                  </div>
+                  {!apiKey && (
+                    <button
+                      onClick={() => setSettingsOpen(true)}
+                      className='mt-1 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-medium hover:bg-primary/15 transition-colors'
+                    >
+                      {t('actions.settings')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <a
-              href='https://github.com/qwq202/ai-img/releases'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-xs text-blue-600 hover:text-blue-800 underline flex-shrink-0'
-            >
-              {t('messages.viewUpdate')}
-            </a>
-            <button onClick={() => setUpdateAvailable(false)} className='text-blue-400 hover:text-blue-600 flex-shrink-0'>
-              <X className='h-4 w-4' />
-            </button>
-          </div>
-        )}
 
-        <a
-          href='https://github.com/qwq202/ai-img'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='fixed top-4 right-4 z-40 p-2 hover:bg-slate-100 rounded-full transition-colors hidden lg:block'
-          title='GitHub'
-        >
-          <svg className='h-5 w-5' fill='currentColor' viewBox='0 0 24 24'>
-            <path fillRule='evenodd' clipRule='evenodd' d='M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z' />
-          </svg>
-        </a>
-
-        {workspacePage === 'studio' && (
-          <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1600px] mx-auto'>
-            {/* Left Panel: Controls */}
-            <div className='lg:col-span-4 space-y-6'>
-              
-              {/* Mode Switch */}
-              <div className='flex bg-slate-100/50 rounded-md p-1'>
-                <button
-                  onClick={() => setMode('generate')}
-                  className={cn(
-                    'flex-1 py-1.5 text-sm font-medium transition-all rounded-sm duration-300 ease-out',
-                    mode === 'generate' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-900'
-                  )}
-                >
-                  {t('modes.generate')}
-                </button>
-                <button
-                  onClick={() => setMode('edit')}
-                  className={cn(
-                    'flex-1 py-1.5 text-sm font-medium transition-all rounded-sm duration-300 ease-out',
-                    mode === 'edit' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-900'
-                  )}
-                >
-                  {t('modes.edit')}
-                </button>
+            {/* Generated text response */}
+            {generatedText && !loading && (
+              <div className='mx-4 mb-4 lg:mx-8 p-4 glass-panel rounded-xl text-sm text-foreground/80 leading-relaxed max-h-32 overflow-y-auto'>
+                {generatedText}
               </div>
+            )}
 
-              {/* Input Area */}
-              <div className='space-y-3'>
-                <div className='flex justify-between items-center'>
-                  <Label className='text-xs font-semibold uppercase text-slate-400 tracking-wider'>
-                    {mode === 'generate' ? t('labels.prompt') : t('labels.editInstruction')}
-                  </Label>
-                  <button 
-                    onClick={handleOptimizePrompt}
-                    disabled={optimizing || !prompt.trim()}
-                    className='text-xs text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors disabled:opacity-50'
-                    title={t('hints.promptOptimizer')}
+            {/* Batch results thumbnail strip */}
+            {mode === 'generate' && batchResults.length > 1 && !loading && (
+              <div className='mx-4 mb-4 lg:mx-8 flex gap-2 overflow-x-auto scrollbar-hide pb-1'>
+                {batchResults.map((image, index) => (
+                  <button
+                    key={`${image.slice(0, 32)}_${index}`}
+                    type='button'
+                    onClick={() => setGeneratedImage(image)}
+                    aria-label={`Select result ${index + 1}`}
+                    className={cn(
+                      'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all duration-150',
+                      generatedImage === image
+                        ? 'border-primary shadow-[0_0_0_2px] shadow-primary/40'
+                        : 'border-white/10 hover:border-white/25'
+                    )}
                   >
-                    <span className='text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 mr-1 hidden lg:inline-block'>⌘+Enter</span>
-                    <Wand2 className='h-3 w-3' />
-                    {t('actions.optimize')}
+                    <Image src={image} alt={`result-${index + 1}`} fill className='object-cover' />
+                    <span className='absolute left-1 bottom-1 text-[9px] font-bold text-white bg-black/60 px-1 rounded leading-none py-0.5'>
+                      {index + 1}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Floating prompt bar */}
+            <div className='absolute bottom-5 left-1/2 -translate-x-1/2 w-[min(820px,calc(100vw-2rem))] z-20'>
+              <div className='prompt-bar rounded-2xl px-3 py-2.5 flex items-end gap-2 shadow-2xl'>
+                {/* Mode toggle capsule */}
+                <div className='flex-shrink-0 flex items-center bg-white/6 rounded-xl p-0.5 self-center' role='group' aria-label='Generation mode'>
+                  <button
+                    onClick={() => setMode('generate')}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-all duration-200',
+                      mode === 'generate'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    aria-pressed={mode === 'generate'}
+                  >
+                    {t('modes.generate')}
+                  </button>
+                  <button
+                    onClick={() => setMode('edit')}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-all duration-200',
+                      mode === 'edit'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    aria-pressed={mode === 'edit'}
+                  >
+                    {t('modes.edit')}
                   </button>
                 </div>
+
+                {/* Textarea */}
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={mode === 'generate' ? t('placeholders.promptGenerate') : t('placeholders.promptEdit')}
-                  className='min-h-[140px] resize-none border-slate-200 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 bg-white rounded-sm text-sm transition-all duration-300'
+                  rows={1}
+                  className='flex-1 min-h-[36px] max-h-[180px] resize-none bg-transparent border-none outline-none shadow-none focus-visible:ring-0 text-sm text-foreground placeholder:text-muted-foreground py-2 px-1 leading-relaxed'
+                  aria-label={mode === 'generate' ? t('labels.prompt') : t('labels.editInstruction')}
                 />
+
+                {/* Optimize button */}
+                <button
+                  onClick={handleOptimizePrompt}
+                  disabled={optimizing || !prompt.trim()}
+                  title={t('hints.promptOptimizer')}
+                  aria-label={t('actions.optimize')}
+                  className='flex-shrink-0 self-center w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 disabled:opacity-30 transition-all duration-150'
+                >
+                  <Wand2 className={cn('h-4 w-4', optimizing && 'animate-spin')} />
+                </button>
+
+                {/* Generate button */}
+                <button
+                  onClick={mode === 'generate' ? handleGenerate : handleEdit}
+                  disabled={loading}
+                  aria-label={t('actions.generate')}
+                  className='flex-shrink-0 self-center h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5 hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all duration-150 shadow-[0_2px_12px] shadow-primary/30'
+                >
+                  {loading
+                    ? <Loader2 className='h-4 w-4 animate-spin' />
+                    : <Sparkles className='h-4 w-4' />
+                  }
+                  <span className='hidden sm:inline'>{loading ? t('messages.processing') : t('actions.generate')}</span>
+                </button>
               </div>
 
-              {/* Reference Images */}
-              <div className='space-y-3'>
-<Label className='text-xs font-semibold uppercase text-slate-400 tracking-wider'>
-                     {mode === 'generate' ? t('labels.referenceImages') : t('labels.editMaterials')}
-                   </Label>
-                <div className='grid grid-cols-4 gap-2'>
-                  {(mode === 'generate' ? referenceImages : editImages).map((img) => (
-                    <div key={img.id} className='relative aspect-square bg-white rounded-sm overflow-hidden group border border-slate-200 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5'>
-                      <Image src={img.preview} alt='ref' fill className='object-cover' />
-                      <button
-                        onClick={() => removeImage(mode, img.id)}
-                        className='absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white'
-                      >
-                        <X className='h-4 w-4' />
-                      </button>
-                    </div>
+              {/* Keyboard hint */}
+              <p className='text-center mt-1.5 text-[10px] text-muted-foreground opacity-50 select-none'>
+                <kbd className='font-mono'>⌘</kbd> + <kbd className='font-mono'>Enter</kbd> {t('actions.generate')}
+              </p>
+            </div>
+          </main>
+
+          {/* Right params panel */}
+          <aside
+            className={cn(
+              'hidden lg:flex flex-col flex-shrink-0 panel-shadow-right overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+              'w-[300px]'
+            )}
+            aria-label='Generation parameters'
+          >
+            <div className='flex-1 overflow-y-auto p-4 space-y-5 pb-36'>
+              {/* Header */}
+              <div className='flex items-center justify-between pt-1'>
+                <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>Parameters</p>
+                <button onClick={handleClearCreativeParams}
+                  className='text-[10px] text-muted-foreground hover:text-foreground transition-colors'
+                  title={t('actions.clear')} aria-label={t('actions.clear')}>
+                  {t('actions.clear')}
+                </button>
+              </div>
+
+              {/* Model select */}
+              <div className='space-y-1.5'>
+                <Label className='text-xs text-muted-foreground'>{t('labels.model')}</Label>
+                <Select
+                  value={mode === 'generate' ? generateModel : editModel}
+                  onValueChange={mode === 'generate' ? setGenerateModel : setEditModel}
+                >
+                  <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30'>
+                    <SelectValue placeholder={t('placeholders.selectModel')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(mode === 'generate' ? generateModels : editModels).map((m) => (
+                      <SelectItem key={m.id} value={m.id} className='text-xs'>{m.displayName || m.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Aspect ratio */}
+              <div className='space-y-1.5'>
+                <Label className='text-xs text-muted-foreground'>{t('labels.ratio')}</Label>
+                <div className='flex flex-wrap gap-1.5'>
+                  {availableAspectRatios.slice(0, 8).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => activeCapabilities.supportsAspectRatio && setAspectRatio(r)}
+                      disabled={!activeCapabilities.supportsAspectRatio}
+                      aria-pressed={aspectRatio === r}
+                      className={cn(
+                        'px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all duration-150',
+                        aspectRatio === r && activeCapabilities.supportsAspectRatio
+                          ? 'bg-primary/15 border-primary/40 text-primary'
+                          : 'border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground',
+                        !activeCapabilities.supportsAspectRatio && 'opacity-30 cursor-not-allowed'
+                      )}
+                    >
+                      {r}
+                    </button>
                   ))}
-                  <div
-                    className={cn(
-                      'aspect-square border border-dashed border-slate-300 rounded-sm flex items-center justify-center cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-all duration-300 group',
-                      (mode === 'generate' ? isReferenceDragActive : isEditDragActive) && 'border-slate-900 bg-slate-50'
-                    )}
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      if (mode === 'generate') {
-                        setIsReferenceDragActive(true)
-                      } else {
-                        setIsEditDragActive(true)
-                      }
-                    }}
-                    onDragLeave={() => {
-                      if (mode === 'generate') {
-                        setIsReferenceDragActive(false)
-                      } else {
-                        setIsEditDragActive(false)
-                      }
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      if (mode === 'generate') {
-                        setIsReferenceDragActive(false)
-                      } else {
-                        setIsEditDragActive(false)
-                      }
-                      addImages(Array.from(e.dataTransfer.files || []), mode)
-                    }}
-                  >
-                    <input
-                      type='file'
-                      multiple
-                      accept='image/*'
-                      className='hidden'
-                      id='upload-trigger'
-                      onChange={(e) => e.target.files && addImages(Array.from(e.target.files), mode)}
-                    />
-                    <label htmlFor='upload-trigger' className='flex flex-col items-center justify-center w-full h-full cursor-pointer text-slate-400 hover:text-slate-600'>
-                      <Upload className='h-5 w-5 text-slate-400 group-hover:scale-110 transition-transform duration-300' />
-                    </label>
-                  </div>
                 </div>
               </div>
 
-              {/* Controls Grid */}
-              <div className='grid grid-cols-3 gap-4'>
-                <div className='space-y-1.5'>
-                  <Label className='text-xs text-slate-500'>{t('labels.model')}</Label>
-                  <Select 
-                    value={mode === 'generate' ? generateModel : editModel} 
-                    onValueChange={mode === 'generate' ? setGenerateModel : setEditModel}
-                  >
-                    <SelectTrigger className='h-9 text-xs'><SelectValue placeholder={t('placeholders.selectModel')} /></SelectTrigger>
-                    <SelectContent>
-                      {(mode === 'generate' ? generateModels : editModels).map((m) => (
-                        <SelectItem key={m.id} value={m.id} className='text-xs'>{m.id}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Resolution */}
+              <div className='space-y-1.5'>
+                <Label className='text-xs text-muted-foreground'>{t('labels.resolution')}</Label>
+                <div className='flex gap-1.5'>
+                  {availableImageSizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => (activeCapabilities.supportsImageSize && !activeCapabilities.forcedImageSize) && setImageSize(size)}
+                      disabled={!activeCapabilities.supportsImageSize || !!activeCapabilities.forcedImageSize}
+                      aria-pressed={imageSize === size}
+                      className={cn(
+                        'flex-1 py-1.5 text-[11px] font-medium rounded-lg border transition-all duration-150',
+                        imageSize === size && activeCapabilities.supportsImageSize
+                          ? 'bg-primary/15 border-primary/40 text-primary'
+                          : 'border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground',
+                        (!activeCapabilities.supportsImageSize || !!activeCapabilities.forcedImageSize) && 'opacity-30 cursor-not-allowed'
+                      )}
+                    >
+                      {IMAGE_SIZE_LABELS[size] || size}
+                    </button>
+                  ))}
                 </div>
-                
-                <div className='space-y-1.5'>
-                  <Label className='text-xs text-slate-500'>{t('labels.ratio')}</Label>
-                  <Select
-                    value={aspectRatio}
-                    onValueChange={setAspectRatio}
-                    disabled={!activeCapabilities.supportsAspectRatio}
-                  >
-                    <SelectTrigger className='h-9 text-xs'><SelectValue placeholder={t('placeholders.auto')} /></SelectTrigger>
-                    <SelectContent>
-                      {availableAspectRatios.map((r) => <SelectItem key={r} value={r} className='text-xs'>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className='space-y-1.5'>
-                  <Label className='text-xs text-slate-500'>{t('labels.resolution')}</Label>
-                  <Select
-                    value={imageSize}
-                    onValueChange={setImageSize}
-                    disabled={!activeCapabilities.supportsImageSize || !!activeCapabilities.forcedImageSize}
-                  >
-                    <SelectTrigger className='h-9 text-xs'><SelectValue placeholder='1K' /></SelectTrigger>
-                    <SelectContent>
-                      {availableImageSizes.map((size) => (
-                        <SelectItem key={size} value={size} className='text-xs'>
-                          {IMAGE_SIZE_LABELS[size as (typeof IMAGE_SIZES)[number]] || size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {activeCapabilities.forcedImageSize ? (
-                    <p className='text-[11px] text-slate-500'>
-                      固定为 {IMAGE_SIZE_LABELS[activeCapabilities.forcedImageSize] || activeCapabilities.forcedImageSize}
-                    </p>
-                  ) : null}
-                </div>
+                {activeCapabilities.forcedImageSize && (
+                  <p className='text-[10px] text-muted-foreground'>
+                    {IMAGE_SIZE_LABELS[activeCapabilities.forcedImageSize] || activeCapabilities.forcedImageSize}
+                  </p>
+                )}
               </div>
 
+              {/* Advanced toggles — generate mode only */}
               {mode === 'generate' && (
-                <div className='space-y-3'>
+                <div className='space-y-2'>
+                  <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>Advanced</p>
+
+                  {/* Google Search */}
                   <div className={cn(
-                    'flex items-center justify-between rounded-sm border border-slate-200 bg-white p-3 shadow-sm transition-all',
-                    selectedGenerateCapabilities.supportsSearchGrounding ? 'hover:shadow-md hover:border-slate-300' : 'opacity-60 cursor-not-allowed bg-slate-50'
+                    'flex items-center justify-between p-3 rounded-xl border transition-all duration-150',
+                    selectedGenerateCapabilities.supportsSearchGrounding
+                      ? 'border-white/10 hover:border-white/18 bg-white/3'
+                      : 'border-white/6 bg-white/2 opacity-40 cursor-not-allowed'
                   )}>
-                    <div className='space-y-0.5'>
-                      <Label htmlFor='google-search' className={cn('text-sm font-medium text-slate-900', selectedGenerateCapabilities.supportsSearchGrounding ? 'cursor-pointer' : 'cursor-not-allowed')}>{t('labels.googleSearch')}</Label>
-                      <p className='text-xs text-slate-500'>
+                    <div>
+                      <Label htmlFor='google-search' className={cn('text-xs font-medium cursor-pointer', !selectedGenerateCapabilities.supportsSearchGrounding && 'cursor-not-allowed')}>
+                        {t('labels.googleSearch')}
+                      </Label>
+                      <p className='text-[10px] text-muted-foreground mt-0.5'>
                         {selectedGenerateCapabilities.supportsSearchGrounding ? t('hints.imageSearchHint') : t('hints.searchNotSupported')}
                       </p>
                     </div>
-                    <Switch
-                      id='google-search'
-                      checked={useGoogleSearch}
-                      onCheckedChange={setUseGoogleSearch}
-                      disabled={!selectedGenerateCapabilities.supportsSearchGrounding}
-                    />
+                    <Switch id='google-search' checked={useGoogleSearch} onCheckedChange={setUseGoogleSearch} disabled={!selectedGenerateCapabilities.supportsSearchGrounding} />
                   </div>
 
+                  {/* Google Image Search */}
                   <div className={cn(
-                    'flex items-center justify-between rounded-sm border border-slate-200 bg-white p-3 shadow-sm transition-all',
+                    'flex items-center justify-between p-3 rounded-xl border transition-all duration-150',
                     selectedGenerateCapabilities.supportsImageSearchGrounding
-                      ? 'hover:shadow-md hover:border-slate-300'
-                      : 'opacity-60 cursor-not-allowed bg-slate-50'
+                      ? 'border-white/10 hover:border-white/18 bg-white/3'
+                      : 'border-white/6 bg-white/2 opacity-40 cursor-not-allowed'
                   )}>
-                    <div className='space-y-0.5'>
-                      <Label htmlFor='google-image-search' className={cn('text-sm font-medium text-slate-900', selectedGenerateCapabilities.supportsImageSearchGrounding ? 'cursor-pointer' : 'cursor-not-allowed')}>{t('labels.googleImageSearch')}</Label>
-                      <p className='text-xs text-slate-500'>
+                    <div>
+                      <Label htmlFor='google-img-search' className={cn('text-xs font-medium cursor-pointer', !selectedGenerateCapabilities.supportsImageSearchGrounding && 'cursor-not-allowed')}>
+                        {t('labels.googleImageSearch')}
+                      </Label>
+                      <p className='text-[10px] text-muted-foreground mt-0.5'>
                         {selectedGenerateCapabilities.supportsImageSearchGrounding ? t('hints.imageSearchHint') : t('hints.imageSearchNotSupported')}
                       </p>
                     </div>
-                    <Switch
-                      id='google-image-search'
-                      checked={useGoogleImageSearch}
-                      onCheckedChange={setUseGoogleImageSearch}
-                      disabled={!selectedGenerateCapabilities.supportsImageSearchGrounding}
-                    />
+                    <Switch id='google-img-search' checked={useGoogleImageSearch} onCheckedChange={setUseGoogleImageSearch} disabled={!selectedGenerateCapabilities.supportsImageSearchGrounding} />
                   </div>
 
+                  {/* Thinking level */}
                   <div className={cn(
-                    'rounded-sm border border-slate-200 bg-white p-3 shadow-sm transition-all',
-                    selectedGenerateCapabilities.supportsThinkingConfig ? 'hover:shadow-md hover:border-slate-300' : 'opacity-60 cursor-not-allowed bg-slate-50'
+                    'space-y-2 p-3 rounded-xl border transition-all duration-150',
+                    selectedGenerateCapabilities.supportsThinkingConfig
+                      ? 'border-white/10 bg-white/3'
+                      : 'border-white/6 bg-white/2 opacity-40'
                   )}>
-                    <div className='space-y-1.5'>
-                      <Label className='text-sm font-medium text-slate-900'>{t('labels.thinkingLevel')}</Label>
-                      <p className='text-xs text-slate-500'>
-                        {selectedGenerateCapabilities.supportsThinkingConfig ? t('hints.thinkingLevelHint') : t('hints.thinkingNotSupported')}
-                      </p>
-                      <Select value={thinkingLevel} onValueChange={(value) => setThinkingLevel(value as 'minimal' | 'high')} disabled={!selectedGenerateCapabilities.supportsThinkingConfig}>
-                        <SelectTrigger className='h-9 text-xs'><SelectValue placeholder={t('placeholders.auto')} /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='minimal' className='text-xs'>{t('placeholders.auto')}</SelectItem>
-                          <SelectItem value='high' className='text-xs'>High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Label className='text-xs font-medium'>{t('labels.thinkingLevel')}</Label>
+                    <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as 'minimal' | 'high')} disabled={!selectedGenerateCapabilities.supportsThinkingConfig}>
+                      <SelectTrigger className='h-8 text-xs bg-white/5 border-white/10'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='minimal' className='text-xs'>{t('placeholders.auto')}</SelectItem>
+                        <SelectItem value='high' className='text-xs'>High</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              )}
 
-              <div className='space-y-3 mt-4 rounded-sm border border-slate-200 bg-white p-3 shadow-sm'>
-                {mode === 'generate' && (
-                  <div className='grid grid-cols-[1fr_120px] gap-3 items-center'>
+                  {/* Generate count */}
+                  <div className='flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/3'>
                     <div>
-                      <Label htmlFor='generate-count' className='text-sm font-medium text-slate-900'>{t('labels.generateCount')}</Label>
-                      <p className='text-xs text-slate-500'>{t('hints.generateCountHint')}</p>
+                      <Label htmlFor='generate-count' className='text-xs font-medium'>{t('labels.generateCount')}</Label>
+                      <p className='text-[10px] text-muted-foreground mt-0.5'>{t('hints.generateCountHint')}</p>
                     </div>
                     <Input
                       id='generate-count'
@@ -1834,407 +2007,418 @@ export default function ImageGenerator({ initialPage = 'studio' }: ImageGenerato
                         if (!Number.isFinite(next)) return
                         setGenerateCount(Math.max(1, Math.min(8, Math.floor(next))))
                       }}
+                      className='w-16 h-8 text-xs text-center bg-white/5 border-white/10 focus:ring-primary/30'
                     />
                   </div>
-                )}
-
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='w-full'
-                  onClick={handleClearCreativeParams}
-                >
-                  {t('actions.clear')}
-                </Button>
-              </div>
-
-              <Button
-                size='lg'
-                className='w-full bg-slate-900 text-white hover:bg-slate-800 hover:scale-[1.01] active:scale-[0.99] rounded-sm h-12 text-sm font-medium tracking-wide mt-4 transition-all duration-200 shadow-lg shadow-slate-900/10'
-                onClick={mode === 'generate' ? handleGenerate : handleEdit}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Sparkles className='mr-2 h-4 w-4' />}
-                {loading ? t('messages.processing') : t('actions.generate')}
-              </Button>
-
-            </div>
-
-            {/* Right Panel: Result */}
-            <div className='lg:col-span-8 flex flex-col h-full min-h-[400px] lg:h-[calc(100dvh-6rem)] lg:max-h-[calc(100dvh-6rem)] overflow-hidden bg-slate-50/50 rounded-sm border border-slate-100 p-6 relative bg-dot-pattern'>
-              <div className='flex-1 min-h-0 flex items-center justify-center relative overflow-hidden'>
-                {loading ? (
-                  <div className='text-center'>
-                    <Loader2 className='h-8 w-8 animate-spin mx-auto text-slate-300' />
-                    <p className='mt-4 text-sm text-slate-400 font-mono animate-pulse'>{loadingMessage}</p>
-                  </div>
-                ) : generatedImage ? (
-                    <div className='relative w-full h-full min-h-0 flex items-center justify-center overflow-hidden'>
-                      {imageLoading && (
-                        <div className='absolute inset-0 flex items-center justify-center bg-slate-50 z-10'>
-                          <Loader2 className='h-8 w-8 animate-spin text-slate-300' />
-                        </div>
-                      )}
-                      <Image
-                        src={generatedImage}
-                        alt='Result image'
-                        width={1024}
-                        height={1024}
-                        unoptimized
-                        onLoad={() => setImageLoading(false)}
-                        onClick={() => setPreviewImage(generatedImage)}
-                        className={cn(
-                          'max-w-full max-h-full object-contain shadow-sm bg-white transition-opacity duration-500 cursor-zoom-in',
-                          imageLoading ? 'opacity-0' : 'opacity-100'
-                        )}
-                      />
-                    <div className='absolute bottom-4 flex gap-2 opacity-0 hover:opacity-100 transition-opacity bg-white/90 p-1.5 rounded-sm border border-slate-200 backdrop-blur-sm'>
-                      <Button variant='ghost' size='icon' className='h-8 w-8' onClick={() => setPreviewImage(generatedImage)}>
-                        <Maximize2 className='h-4 w-4' />
-                      </Button>
-                      <Button variant='ghost' size='icon' className='h-8 w-8' onClick={handleCopyImage}>
-                        <Copy className='h-4 w-4' />
-                      </Button>
-                      <Button variant='ghost' size='icon' className='h-8 w-8' onClick={handleDownload}>
-                        <Download className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className='text-center text-slate-300 flex flex-col items-center justify-center'>
-                    <ImageIcon className='h-24 w-24 mb-4 opacity-10' />
-                    <p className='text-base font-medium opacity-50'>{t('messages.noContent')}</p>
-                  </div>
-                )}
-              </div>
-
-              {generatedText && (
-                <div className='mt-4 p-4 bg-white border border-slate-200 rounded-sm text-sm text-slate-600 leading-relaxed'>
-                  {generatedText}
                 </div>
               )}
 
-              {mode === 'generate' && batchResults.length > 1 && (
-                <div className='mt-4'>
-                  <p className='mb-2 text-xs font-medium text-slate-500'>{t('messages.generatedNotSaved', { count: batchResults.length })}</p>
-                  <div className='grid grid-cols-4 gap-2'>
-                    {batchResults.map((image, index) => (
-                      <button
-                        key={`${image.slice(0, 32)}_${index}`}
-                        type='button'
-                        className={cn(
-                          'relative aspect-square overflow-hidden rounded-sm border bg-white',
-                          generatedImage === image ? 'border-slate-900' : 'border-slate-200 hover:border-slate-400'
-                        )}
-                        onClick={() => setGeneratedImage(image)}
-                      >
-                        <Image src={image} alt={`batch-${index + 1}`} fill className='object-cover' />
-                        <span className='absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white'>#{index + 1}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {/* Reference / edit images */}
+              <ImageUploadZone target={mode} />
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ── History page ── */}
+      {workspacePage === 'history' && (
+        <main className='flex-1 min-w-0 overflow-y-auto p-6 pt-16 lg:pt-6'>
+          <div className='max-w-[1400px] mx-auto'>
+            {/* Header */}
+            <div className='flex flex-wrap items-center gap-3 mb-6'>
+              <h1 className='text-xl font-bold'>{t('nav.history')}</h1>
+              <span className='text-sm text-muted-foreground'>{t('messages.historyCount', { count: historyItems.length })}</span>
+
+              {historyItems.length > 0 && (
+                <>
+                  <select
+                    value={historySortMode}
+                    onChange={(e) => {
+                      const m = e.target.value as 'time' | 'custom'
+                      setHistorySortMode(m)
+                      if (m === 'custom') setHistoryCustomOrder(historyItems.map((i) => i.id))
+                    }}
+                    className='ml-auto text-xs bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-foreground'
+                    aria-label='Sort mode'
+                  >
+                    <option value='time'>{t('labels.sortByTime')}</option>
+                    <option value='custom'>{t('labels.sortByCustom')}</option>
+                  </select>
+
+                  <Button
+                    variant={isSelectionMode ? 'default' : 'outline'}
+                    size='sm'
+                    onClick={() => { setIsSelectionMode(!isSelectionMode); if (isSelectionMode) setSelectedHistoryIds(new Set()) }}
+                    className='h-8 text-xs'
+                  >
+                    {isSelectionMode ? t('actions.cancel') : t('actions.select')}
+                  </Button>
+                </>
               )}
             </div>
-          </div>
-        )}
 
-        {workspacePage === 'history' && (
-          <div className='max-w-[1600px] mx-auto'>
-            <div className='flex items-center justify-between mb-6'>
-              <div className='flex items-center gap-3'>
-                <h2 className='text-xl font-bold'>{t('nav.history')}</h2>
-                {historyItems.length > 0 && (
-                  <div className='flex items-center gap-2'>
-                    <Button
-                      variant={isSelectionMode ? 'default' : 'outline'}
-                      size='sm'
-                      onClick={() => {
-                        setIsSelectionMode(!isSelectionMode)
-                        if (isSelectionMode) {
-                          setSelectedHistoryIds(new Set())
-                        }
-                      }}
-                      className='h-7 text-xs'
-                    >
-                      {isSelectionMode ? t('actions.cancel') : t('actions.select')}
-                    </Button>
-                    {isSelectionMode && selectedHistoryIds.size > 0 && (
-                      <Button
-                        variant='destructive'
-                        size='sm'
-                        onClick={() => {
-                          if (window.confirm(t('messages.confirmBatchDelete', { count: selectedHistoryIds.size }))) {
-                            batchDeleteSelected()
-                          }
-                        }}
-                        className='h-7 text-xs'
-                      >
-                        <Trash2 className='h-3 w-3 mr-1' />
-                        {t('actions.delete')} ({selectedHistoryIds.size})
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className='flex items-center gap-3'>
-                {historyItems.length > 0 && (
-                  <div className='flex items-center gap-2'>
-                    <select
-                      value={historySortMode}
-                      onChange={(e) => {
-                        const mode = e.target.value as 'time' | 'custom'
-                        setHistorySortMode(mode)
-                        if (mode === 'custom') {
-                          setHistoryCustomOrder(historyItems.map((item) => item.id))
-                        }
-                      }}
-                      className='text-xs border border-slate-200 rounded-sm px-2 py-1 bg-white'
-                    >
-                      <option value='time'>{t('labels.sortByTime')}</option>
-                      <option value='custom'>{t('labels.sortByCustom')}</option>
-                    </select>
-                  </div>
-                )}
-                <span className='text-sm text-slate-400'>{t('messages.historyCount', { count: historyItems.length })}</span>
-              </div>
-            </div>
-
+            {/* Batch action bar */}
             {isSelectionMode && selectedHistoryIds.size > 0 && (
-              <div className='mb-4 flex items-center gap-2'>
+              <div className='mb-4 flex items-center gap-2 p-3 glass-panel rounded-xl'>
                 <Button variant='outline' size='sm' onClick={toggleSelectAll} className='h-7 text-xs'>
                   {selectedHistoryIds.size === historyItems.length ? t('actions.deselectAll') : t('actions.selectAll')}
                 </Button>
-                <span className='text-xs text-slate-500'>{t('messages.selectedCount', { count: selectedHistoryIds.size })}</span>
+                <span className='text-xs text-muted-foreground'>{t('messages.selectedCount', { count: selectedHistoryIds.size })}</span>
+                <Button
+                  variant='destructive' size='sm'
+                  onClick={() => { if (window.confirm(t('messages.confirmBatchDelete', { count: selectedHistoryIds.size }))) batchDeleteSelected() }}
+                  className='h-7 text-xs ml-auto'
+                >
+                  <Trash2 className='h-3 w-3 mr-1' />
+                  {t('actions.delete')} ({selectedHistoryIds.size})
+                </Button>
               </div>
             )}
 
-            <DndContext
-              sensors={undefined}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={sortedHistoryItems.map((item) => item.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4'>
+            {/* Grid */}
+            <DndContext sensors={undefined} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={sortedHistoryItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3'>
                   {sortedHistoryItems.map((item) => {
                     const isSelected = selectedHistoryIds.has(item.id)
                     return (
                       <div
                         key={item.id}
                         className={cn(
-                          'group relative border bg-white rounded-sm overflow-hidden transition-colors',
-                          isSelectionMode && isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-slate-400',
-                          historySortMode === 'custom' && 'cursor-grab'
+                          'group relative rounded-xl overflow-hidden border transition-all duration-200 hover-lift',
+                          isSelectionMode && isSelected
+                            ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
+                            : 'border-white/8 hover:border-white/20 bg-white/3',
+                          historySortMode === 'custom' && 'cursor-grab active:cursor-grabbing'
                         )}
                       >
-                        <div className='aspect-square relative bg-slate-50'>
-                          <Image src={item.image} alt='history' fill className='object-cover' />
-                          {isSelectionMode ? (
+                        <div className='aspect-square relative'>
+                          <Image src={item.image} alt={item.prompt || 'history item'} fill className='object-cover' />
+
+                          {/* Selection overlay */}
+                          {isSelectionMode && (
                             <button
                               type='button'
                               className='absolute inset-0 z-10 cursor-pointer'
-                              onClick={() => {
-                                    setSelectedHistoryIds((prev) => {
-                                      const next = new Set(prev)
-                                      if (next.has(item.id)) {
-                                        next.delete(item.id)
-                                      } else {
-                                        next.add(item.id)
-                                      }
-                                      return next
-                                    })
-                                  }}
+                              onClick={() => setSelectedHistoryIds((prev) => {
+                                const next = new Set(prev)
+                                next.has(item.id) ? next.delete(item.id) : next.add(item.id)
+                                return next
+                              })}
+                              aria-label={isSelected ? 'Deselect' : 'Select'}
                             >
-                              <div className='absolute top-2 left-2 z-10'>
-                                {isSelected ? (
-                                  <CheckSquare className='h-5 w-5 text-blue-500' />
-                                ) : (
-                                  <Square className='h-5 w-5 text-slate-400' />
-                                )}
+                              <div className='absolute top-2 left-2'>
+                                {isSelected
+                                  ? <CheckSquare className='h-5 w-5 text-primary drop-shadow' />
+                                  : <Square className='h-5 w-5 text-white/60 drop-shadow' />
+                                }
                               </div>
                             </button>
-                          ) : historySortMode === 'custom' ? (
-                            <div className='absolute top-2 left-2 z-10 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity'>
-                              <GripVertical className='h-4 w-4 text-slate-600' />
+                          )}
+
+                          {/* Drag handle */}
+                          {!isSelectionMode && historySortMode === 'custom' && (
+                            <div className='absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <GripVertical className='h-4 w-4 text-white drop-shadow' />
                             </div>
-                          ) : null}
+                          )}
+
+                          {/* Hover action bar */}
                           {!isSelectionMode && (
-                            <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100'>
-                              <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-black' onClick={() => {
-                                setGeneratedImage(item.image)
-                                setGeneratedText(item.text || '')
-                                setMode(item.mode)
-                                router.push('/')
-                              }}>
-                                <Undo2 className='h-4 w-4' />
-                              </Button>
-                              <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => moveHistoryItemToTrash(item.id)}>
-                                <Trash2 className='h-4 w-4' />
-                              </Button>
+                            <div className='absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 p-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                onClick={() => { setGeneratedImage(item.image); setGeneratedText(item.text || ''); setMode(item.mode); router.push('/') }}
+                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                                aria-label='Use in studio'
+                              >
+                                <Undo2 className='h-3.5 w-3.5' />
+                              </button>
+                              <button
+                                onClick={() => moveHistoryItemToTrash(item.id)}
+                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500/50 transition-colors'
+                                aria-label='Move to trash'
+                              >
+                                <Trash2 className='h-3.5 w-3.5' />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.prompt); setNotice(t('messages.promptCopied')) }}
+                                className='w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                                aria-label='Copy prompt'
+                              >
+                                <Copy className='h-3.5 w-3.5' />
+                              </button>
                             </div>
                           )}
                         </div>
-                        <div className='p-2'>
-                          <div className='flex items-center justify-between'>
-                            <p className='text-[10px] text-slate-400 uppercase font-medium truncate'>{item.model}</p>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigator.clipboard.writeText(item.prompt)
-                                setNotice(t('messages.promptCopied'))
-                              }}
-                              className='text-[10px] text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity'
-                              title={t('messages.promptCopied')}
-                            >
-                              <Copy className='h-3 w-3' />
-                            </button>
-                          </div>
-                          <p className='text-xs text-slate-600 truncate mt-0.5'>{item.prompt}</p>
+
+                        <div className='px-2 py-1.5'>
+                          <p className='text-[9px] text-muted-foreground uppercase font-semibold truncate tracking-wide'>{item.model}</p>
+                          <p className='text-[11px] text-foreground/70 truncate mt-0.5 leading-tight'>{item.prompt}</p>
                         </div>
                       </div>
                     )
                   })}
+
                   {historyItems.length === 0 && (
-                    <div className='col-span-full flex flex-col items-center justify-center py-20 text-slate-400'>
-                      <div className='h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4'>
-                        <History className='h-8 w-8 opacity-20' />
+                    <div className='col-span-full flex flex-col items-center justify-center py-24 text-muted-foreground gap-3'>
+                      <div className='w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center'>
+                        <History className='h-7 w-7 opacity-30' />
                       </div>
                       <p className='text-sm font-medium'>{t('messages.noHistory')}</p>
-                      <p className='text-xs mt-1 opacity-60'>{t('messages.noHistoryHint')}</p>
+                      <p className='text-xs opacity-60'>{t('messages.noHistoryHint')}</p>
                     </div>
                   )}
                 </div>
               </SortableContext>
             </DndContext>
           </div>
-        )}
+        </main>
+      )}
 
-        {workspacePage === 'trash' && (
-           <div className='max-w-[1600px] mx-auto'>
+      {/* ── Trash page ── */}
+      {workspacePage === 'trash' && (
+        <main className='flex-1 min-w-0 overflow-y-auto p-6 pt-16 lg:pt-6'>
+          <div className='max-w-[1400px] mx-auto'>
             <div className='flex items-center justify-between mb-6'>
-              <h2 className='text-xl font-bold'>{t('nav.trash')}</h2>
-              <Button variant='outline' size='sm' onClick={() => {
-                if (window.confirm(t('messages.confirmClearTrash'))) {
-                  clearTrash()
-                }
-              }} disabled={trashItems.length === 0}>{t('actions.clear')}</Button>
+              <div>
+                <h1 className='text-xl font-bold'>{t('nav.trash')}</h1>
+                <p className='text-xs text-muted-foreground mt-0.5'>{trashItems.length} {t('nav.trash').toLowerCase()}</p>
+              </div>
+              <Button
+                variant='outline'
+                size='sm'
+                className='border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20'
+                onClick={() => { if (window.confirm(t('messages.confirmClearTrash'))) clearTrash() }}
+                disabled={trashItems.length === 0}
+              >
+                {t('actions.clear')}
+              </Button>
             </div>
-            
-            <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4'>
+
+            <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3'>
               {trashItems.map((item) => (
-                <div key={item.id} className='relative border border-slate-200 bg-white rounded-sm overflow-hidden opacity-75 hover:opacity-100 transition-opacity'>
-                  <div className='aspect-square relative bg-slate-50'>
-                    <Image src={item.image} alt='trash' fill className='object-cover grayscale' />
-                    <div className='absolute inset-0 flex items-center justify-center gap-2 bg-black/10'>
-                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white' onClick={() => restoreTrashItem(item.id)}>
+                <div key={item.id} className='group relative rounded-xl overflow-hidden border border-white/6 bg-white/2 opacity-60 hover:opacity-100 transition-all duration-200 hover-lift'>
+                  <div className='aspect-square relative'>
+                    <Image src={item.image} alt={item.prompt || 'trash item'} fill className='object-cover grayscale group-hover:grayscale-0 transition-all duration-300' />
+                    <div className='absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40'>
+                      <button
+                        onClick={() => restoreTrashItem(item.id)}
+                        className='w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors'
+                        aria-label='Restore'
+                      >
                         <RotateCcw className='h-4 w-4' />
-                      </Button>
-                      <Button size='icon' variant='secondary' className='h-8 w-8 rounded-sm bg-white text-red-600' onClick={() => deleteTrashItemPermanently(item.id)}>
+                      </button>
+                      <button
+                        onClick={() => deleteTrashItemPermanently(item.id)}
+                        className='w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-red-500/50 transition-colors'
+                        aria-label='Delete permanently'
+                      >
                         <X className='h-4 w-4' />
-                      </Button>
+                      </button>
                     </div>
+                  </div>
+                  <div className='px-2 py-1.5'>
+                    <p className='text-[11px] text-muted-foreground truncate'>{item.prompt}</p>
                   </div>
                 </div>
               ))}
-               {trashItems.length === 0 && (
-                <div className='col-span-full flex flex-col items-center justify-center py-20 text-slate-400'>
-                  <div className='h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4'>
-                    <Trash2 className='h-8 w-8 opacity-20' />
+
+              {trashItems.length === 0 && (
+                <div className='col-span-full flex flex-col items-center justify-center py-24 text-muted-foreground gap-3'>
+                  <div className='w-16 h-16 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center'>
+                    <Trash2 className='h-7 w-7 opacity-30' />
                   </div>
                   <p className='text-sm font-medium'>{t('messages.trashEmpty')}</p>
-                  <p className='text-xs mt-1 opacity-60'>{t('messages.trashHint')}</p>
+                  <p className='text-xs opacity-60'>{t('messages.trashHint')}</p>
                 </div>
               )}
             </div>
           </div>
-        )}
-      </main>
+        </main>
+      )}
 
-      {/* Settings Modal */}
-      {settingsOpen && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm' onClick={() => setSettingsOpen(false)}>
-          <Card className='w-full max-w-md bg-white border-none shadow-xl rounded-sm' onClick={e => e.stopPropagation()}>
-            <div className='p-6 space-y-6'>
-              <div className='flex items-center justify-between'>
-                <h3 className='text-lg font-bold'>{t('settings.title')} <span className='text-xs font-normal text-slate-400'>v{CURRENT_VERSION}</span></h3>
-                <button onClick={() => setSettingsOpen(false)} className='text-slate-400 hover:text-slate-900'><X className='h-5 w-5' /></button>
+      {/* ── Mobile bottom nav ── */}
+      <nav className='lg:hidden fixed bottom-0 inset-x-0 z-30 h-16 glass-panel flex items-center justify-around px-4' aria-label='Mobile navigation'>
+        {navItems.map((item) => {
+          const active = workspacePage === item.key
+          return (
+            <Link key={item.key} href={item.href}
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200',
+                active ? 'text-primary' : 'text-muted-foreground'
+              )}>
+              <div className='relative'>
+                {item.icon}
+                {item.count ? (
+                  <span className='absolute -top-1 -right-1.5 min-w-[14px] h-3.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center px-1'>
+                    {item.count}
+                  </span>
+                ) : null}
               </div>
-              
-              <div className='space-y-4'>
-                <div className='space-y-2'>
-                  <Label>{t('settings.apiKey')}</Label>
-                  <Input type='password' value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={t('placeholders.apiKeyPlaceholder')} />
-                </div>
-                <div className='space-y-2'>
-                  <Label>{t('settings.apiUrl')}</Label>
-                  <Input value={apiUrl} onChange={e => setApiUrl(e.target.value)} placeholder={t('placeholders.apiUrlPlaceholder')} />
-                </div>
-                <div className='space-y-2'>
-                   <Label>{t('settings.promptOptimizerModel')}</Label>
-                   <Select value={optimizeModel} onValueChange={setOptimizeModel}>
-                    <SelectTrigger><SelectValue placeholder={t('settings.selectModel')} /></SelectTrigger>
-                    <SelectContent>
-                      {promptModels.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                   </Select>
-                </div>
-                <div className='space-y-2'>
-                  <Label>{t('settings.language')}</Label>
-                  <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='zh-CN'>中文</SelectItem>
-                      <SelectItem value='en'>English</SelectItem>
-                      <SelectItem value='ja'>日本語</SelectItem>
-                      <SelectItem value='ko'>한국어</SelectItem>
-                      <SelectItem value='fr'>Français</SelectItem>
-                      <SelectItem value='de'>Deutsch</SelectItem>
-                      <SelectItem value='es'>Español</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className='flex items-center justify-between pt-2'>
-                  <Label>{t('settings.debugMode')}</Label>
-                  <Switch checked={debugEnabled} onCheckedChange={setDebugEnabled} />
-                </div>
-                <div className='flex items-center justify-between pt-2'>
-                  <div>
-                    <Label>{t('settings.autoSaveToHistory')}</Label>
-                    <p className='text-xs text-slate-500 mt-1'>{t('hints.autoSaveHint')}</p>
-                  </div>
-                  <Switch checked={autoSaveToHistory} onCheckedChange={setAutoSaveToHistory} />
-                </div>
-              </div>
+              <span className='text-[9px] font-semibold'>{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
 
-              <div className='flex gap-3 pt-2'>
-                <Button variant='outline' className='flex-1' onClick={handleTestConnection} disabled={connectionTesting}>
-                  {connectionTesting ? t('actions.testing') : t('actions.test')}
-                </Button>
-                <Button className='flex-1 bg-slate-900 text-white hover:bg-black' onClick={handleSaveSettings}>{t('actions.save')}</Button>
-              </div>
-            </div>
-          </Card>
+      {/* ── Toast notification ── */}
+      {(error || notice) && (
+        <div
+          role='alert'
+          aria-live='assertive'
+          className='fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-[120] max-w-sm px-4 py-3 glass-panel rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-4 fade-in duration-200'
+        >
+          {error
+            ? <AlertCircle className='h-4 w-4 text-destructive flex-shrink-0' aria-hidden='true' />
+            : <CheckCircle2 className='h-4 w-4 text-green-400 flex-shrink-0' aria-hidden='true' />
+          }
+          <span className='text-sm font-medium flex-1'>{error || notice}</span>
+          <button onClick={() => { setError(''); setNotice('') }} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss'>
+            <X className='h-4 w-4' />
+          </button>
         </div>
       )}
 
-      {/* Fullscreen Preview */}
+      {/* ── Update available banner ── */}
+      {updateAvailable && (
+        <div className='fixed top-14 lg:top-4 right-4 z-50 glass-panel rounded-xl p-3 shadow-2xl flex items-center gap-3 max-w-xs animate-in slide-in-from-top-4 fade-in duration-200'>
+          <Sparkles className='h-4 w-4 text-primary flex-shrink-0' aria-hidden='true' />
+          <p className='text-xs text-foreground/80 flex-1'>{t('messages.updateAvailable', { version: latestVersion })}</p>
+          <a href='https://github.com/qwq202/ai-img/releases' target='_blank' rel='noopener noreferrer'
+            className='text-xs text-primary hover:text-primary/80 underline flex-shrink-0'>{t('messages.viewUpdate')}</a>
+          <button onClick={() => setUpdateAvailable(false)} className='text-muted-foreground hover:text-foreground flex-shrink-0 transition-colors' aria-label='Dismiss update notice'>
+            <X className='h-3.5 w-3.5' />
+          </button>
+        </div>
+      )}
+
+      {/* ── Settings drawer ── */}
+      {settingsOpen && (
+        <div className='fixed inset-0 z-[60] flex justify-end' onClick={() => setSettingsOpen(false)}>
+          <div className='absolute inset-0 bg-black/50 backdrop-blur-sm' aria-hidden='true' />
+          <aside
+            className='relative w-full max-w-[360px] h-full glass-panel shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right-8 duration-300'
+            onClick={(e) => e.stopPropagation()}
+            aria-label='Settings'
+          >
+            {/* Drawer header */}
+            <div className='flex items-center justify-between p-5 border-b border-white/8'>
+              <div>
+                <h2 className='text-base font-semibold'>{t('settings.title')}</h2>
+                <p className='text-[10px] text-muted-foreground mt-0.5'>v{CURRENT_VERSION}</p>
+              </div>
+              <button onClick={() => setSettingsOpen(false)}
+                className='w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/8 transition-all'
+                aria-label='Close settings'>
+                <X className='h-4 w-4' />
+              </button>
+            </div>
+
+            {/* Settings body */}
+            <div className='flex-1 overflow-y-auto p-5 space-y-5'>
+              {/* API config */}
+              <div className='space-y-3'>
+                <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>API</p>
+                <div className='space-y-1.5'>
+                  <Label className='text-xs'>{t('settings.apiKey')}</Label>
+                  <Input type='password' value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={t('placeholders.apiKeyPlaceholder')}
+                    className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30' />
+                </div>
+                <div className='space-y-1.5'>
+                  <Label className='text-xs'>{t('settings.apiUrl')}</Label>
+                  <Input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)}
+                    placeholder={t('placeholders.apiUrlPlaceholder')}
+                    className='h-9 text-xs bg-white/5 border-white/10 focus:ring-primary/30' />
+                </div>
+                <div className='space-y-1.5'>
+                  <Label className='text-xs'>{t('settings.promptOptimizerModel')}</Label>
+                  <Select value={optimizeModel} onValueChange={setOptimizeModel}>
+                    <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10'>
+                      <SelectValue placeholder={t('settings.selectModel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {promptModels.map((m) => <SelectItem key={m} value={m} className='text-xs'>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Preferences */}
+              <div className='space-y-3'>
+                <p className='text-[10px] font-semibold uppercase tracking-widest text-muted-foreground'>Preferences</p>
+                <div className='space-y-1.5'>
+                  <Label className='text-xs'>{t('settings.language')}</Label>
+                  <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+                    <SelectTrigger className='h-9 text-xs bg-white/5 border-white/10'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='zh-CN' className='text-xs'>中文</SelectItem>
+                      <SelectItem value='en' className='text-xs'>English</SelectItem>
+                      <SelectItem value='ja' className='text-xs'>日本語</SelectItem>
+                      <SelectItem value='ko' className='text-xs'>한국어</SelectItem>
+                      <SelectItem value='fr' className='text-xs'>Français</SelectItem>
+                      <SelectItem value='de' className='text-xs'>Deutsch</SelectItem>
+                      <SelectItem value='es' className='text-xs'>Español</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className='flex items-center justify-between p-3 rounded-xl border border-white/8 bg-white/3'>
+                  <div>
+                    <Label className='text-xs font-medium'>{t('settings.autoSaveToHistory')}</Label>
+                    <p className='text-[10px] text-muted-foreground mt-0.5'>{t('hints.autoSaveHint')}</p>
+                  </div>
+                  <Switch checked={autoSaveToHistory} onCheckedChange={setAutoSaveToHistory} />
+                </div>
+                <div className='flex items-center justify-between p-3 rounded-xl border border-white/8 bg-white/3'>
+                  <Label className='text-xs font-medium'>{t('settings.debugMode')}</Label>
+                  <Switch checked={debugEnabled} onCheckedChange={setDebugEnabled} />
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer footer actions */}
+            <div className='p-5 border-t border-white/8 flex gap-3'>
+              <Button variant='outline' className='flex-1 h-9 text-xs border-white/10 hover:border-white/20' onClick={handleTestConnection} disabled={connectionTesting}>
+                {connectionTesting ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
+                {connectionTesting ? t('actions.testing') : t('actions.test')}
+              </Button>
+              <Button className='flex-1 h-9 text-xs bg-primary hover:brightness-110' onClick={handleSaveSettings}>
+                {t('actions.save')}
+              </Button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ── Fullscreen image preview ── */}
       {previewImage && (
-        <div className='fixed inset-0 z-[100] bg-white flex items-center justify-center' onClick={() => setPreviewImage(null)}>
-           <button className='absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full' onClick={() => setPreviewImage(null)}>
-             <X className='h-8 w-8 text-slate-900' />
-           </button>
-           <Image
-             src={previewImage}
-             alt='Preview image'
-             width={2048}
-             height={2048}
-             unoptimized
-             className='max-w-[95vw] max-h-[95vh] h-auto w-auto object-contain'
-           />
+        <div
+          className='fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-md'
+          onClick={() => setPreviewImage(null)}
+          role='dialog'
+          aria-modal='true'
+          aria-label='Image preview'
+        >
+          <button
+            className='absolute top-4 right-4 w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-foreground/80 hover:text-foreground hover:bg-white/10 transition-all'
+            onClick={() => setPreviewImage(null)}
+            aria-label='Close preview'
+          >
+            <X className='h-5 w-5' />
+          </button>
+          <Image
+            src={previewImage}
+            alt='Full preview'
+            width={2048}
+            height={2048}
+            unoptimized
+            className='max-w-[95vw] max-h-[95vh] h-auto w-auto object-contain rounded-xl shadow-2xl'
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
